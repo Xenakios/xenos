@@ -175,6 +175,13 @@ XenosAudioProcessor::XenosAudioProcessor()
                    .withStringFromValueFunction(
                        [](auto x, auto) { return juce::String(x, 3); })
                    .withLabel("st")),
+            std::make_unique<juce::AudioParameterFloat>(
+               juce::ParameterID{"mainhpfilterfrequency", 1}, "mainhpfilterfrequency",
+               juce::NormalisableRange<float>(8.0f, 1000.0f, 0.0f, 0.3f), 16.0f,
+               juce::AudioParameterFloatAttributes()
+                   .withStringFromValueFunction(
+                       [](auto x, auto) { return juce::String(x, 1);  })
+                   .withLabel(" Hz")),
             std::make_unique<juce::AudioParameterChoice>(
                juce::ParameterID{"voicePanningMode", 1}, "voicePanningMode",
                juce::StringArray{// choices
@@ -210,6 +217,8 @@ XenosAudioProcessor::XenosAudioProcessor()
 
     scaleParam = params.getRawParameterValue("scale");
     rootParam = params.getRawParameterValue("root");
+
+    hpFilterParam = params.getRawParameterValue("mainhpfilterfrequency");
 }
 
 XenosAudioProcessor::~XenosAudioProcessor() {}
@@ -326,6 +335,7 @@ void XenosAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     xenosAudioSource.getNextAudioBlock(channelInfo);
     juce::dsp::AudioBlock<float> block(buffer);
     juce::dsp::ProcessContextReplacing<float> ctx(block);
+    outputFilter.setCutoffFrequency(*hpFilterParam);
     outputFilter.process(ctx);
 }
 

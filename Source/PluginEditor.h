@@ -159,7 +159,7 @@ private:
     ParamSlider root;
 
     ParamMenu voicepanmode;
-    
+    ParamSlider mainhpfilter;
 
     juce::MidiKeyboardComponent keyboardComponent;
 

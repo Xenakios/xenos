@@ -98,6 +98,8 @@ private:
     std::atomic<float>* scaleParam = nullptr;
     std::atomic<float>* rootParam = nullptr;
 
+    std::atomic<float>* hpFilterParam = nullptr;
+
     const int customScaleParamIndex = SCALE_PRESETS + 1;
 
     juce::dsp::StateVariableTPTFilter<float> outputFilter;

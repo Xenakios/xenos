@@ -68,6 +68,8 @@ XenosAudioProcessorEditor::XenosAudioProcessorEditor(
     
     initParamMenu(voicepanmode,"voicePanningMode","VOICE PAN MODE",0.0f);
     voicepanmode.setVisible(false);
+    initParamSlider(mainhpfilter, "mainhpfilterfrequency", "Main highpass filter", horizontal, blue);
+    mainhpfilter.setVisible(false);
 
     if (!audioProcessor.customScaleData.isEmpty()) {
         scale.changeItemText(customScaleMenuIndex,
@@ -107,6 +109,7 @@ void XenosAudioProcessorEditor::mouseDown(const juce::MouseEvent& ev)
         customButton.setVisible(false);
         root.setVisible(false);
         voicepanmode.setVisible(true);
+        mainhpfilter.setVisible(true);
     }
     else 
     {
@@ -121,6 +124,7 @@ void XenosAudioProcessorEditor::mouseDown(const juce::MouseEvent& ev)
         customButton.setVisible(true);
         root.setVisible(true);
         voicepanmode.setVisible(false);
+        mainhpfilter.setVisible(false);
     }
     
 }
@@ -200,7 +204,10 @@ void XenosAudioProcessorEditor::resized()
     auto menuW = panel1W / 2 - margin / 2;
     auto hSliderYOffset = panel2H / 3;
     auto hSliderW = panel1W + margin / 2;
+    
     voicepanmode.setBounds(panel1X3, vSliderY, menuW, menuH);
+    mainhpfilter.setBounds(voicepanmode.getX(), voicepanmode.getBottom()+25, hSliderW, menuH);
+    
     pitchDistribution.setBounds(margin, panel2Y, menuW, menuH);
     pitchWalk.setBounds(margin + panel1W / 2 + margin / 2, panel2Y, menuW,
                         menuH);
