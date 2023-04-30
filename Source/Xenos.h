@@ -131,10 +131,38 @@ struct XenosCore {
 
 //==============================================================================
 struct XenosSound : public juce::SynthesiserSound {
-    XenosSound() {}
+    XenosSound() 
+    {
+        rng = std::minstd_rand((unsigned int)this);
+    }
 
     bool appliesToNote(int) override { return true; }
     bool appliesToChannel(int) override { return true; }
+    
+    enum class VoicePanMode
+    {
+        AlwaysCenter,
+        AltLeftRight,
+        Random,
+        Sine1Cycle,
+        Sine2Cycles,
+        Last
+    };
+    std::minstd_rand rng;
+    std::uniform_real_distribution<float> panDistribution{0.0f,1.0f};
+    VoicePanMode voicePanMode{VoicePanMode::Random};
+    float getPanPositionFromMidiKey(int key)
+    {
+        if (voicePanMode == VoicePanMode::AltLeftRight)
+            return (float)(key % 2);
+        else if (voicePanMode == VoicePanMode::Random)
+            return panDistribution(rng);
+        else if (voicePanMode == VoicePanMode::Sine1Cycle)
+            return std::sin(2*3.141592653/128*key);
+        else if (voicePanMode == VoicePanMode::Sine2Cycles)
+            return std::sin(2*3.141592653/128*key*2.0f);
+        return 0.5f;
+    }
 };
 
 //==============================================================================
@@ -160,13 +188,15 @@ struct XenosVoice : public juce::SynthesiserVoice {
         adsr.setParameters(juce::ADSR::Parameters(a, d, s, r));
     }
 
-    void startNote(int note, float velocity, juce::SynthesiserSound*,
+    void startNote(int note, float velocity, juce::SynthesiserSound* snd,
                    int currentPitchWheelPosition) override
     {
         xenos.pitchCenter = note;
         xenos.setBend(currentPitchWheelPosition);
         adsr.noteOn();
         xenos.reset();
+        auto xsnd = dynamic_cast<XenosSound*>(snd);
+        panPosition = xsnd->getPanPositionFromMidiKey(note);
     }
 
     void stopNote(float /*velocity*/, bool allowTailOff) override
@@ -185,11 +215,14 @@ struct XenosVoice : public juce::SynthesiserVoice {
                          int numSamples) override
     {
         if (adsr.isActive()) {
+            float gainLeft = panPosition;
+            float gainRight = 1.0f-panPosition;
             while (--numSamples >= 0) {
                 auto currentSample
                     = xenos() * adsr.getNextSample() * polyGainFactor;
-                for (auto i = outputBuffer.getNumChannels(); --i >= 0;)
-                    outputBuffer.addSample(i, startSample, currentSample);
+                //for (auto i = outputBuffer.getNumChannels(); --i >= 0;)
+                    outputBuffer.addSample(0, startSample, currentSample * gainLeft);
+                    outputBuffer.addSample(1, startSample, currentSample * gainRight);
                 ++startSample;
             }
         } else {
@@ -199,6 +232,7 @@ struct XenosVoice : public juce::SynthesiserVoice {
 
     XenosCore xenos;
     juce::ADSR adsr;
+    float panPosition = 0.5f;
     float a = 0.1f, d = 0.1f, s = 1.0f, r = 0.1f;
     const double polyGainFactor = 1 / sqrt(NUM_VOICES / 4);
 };

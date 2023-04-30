@@ -19,7 +19,7 @@ if(UNIX AND NOT APPLE)
 endif(UNIX AND NOT APPLE)
 
 # Set what formats we want to target
-list(APPEND BUILD_TYPES VST3)
+list(APPEND BUILD_TYPES VST3 Standalone)
 if (APPLE)
     list(APPEND BUILD_TYPES AU)
 endif(APPLE)
@@ -81,6 +81,7 @@ target_link_libraries(${APP_NAME} PRIVATE
     juce::juce_graphics
     juce::juce_gui_basics
     juce::juce_gui_extra
+    juce::juce_dsp
 PUBLIC
     juce::juce_recommended_config_flags
     juce::juce_recommended_lto_flags
