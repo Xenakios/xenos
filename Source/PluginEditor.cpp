@@ -20,7 +20,6 @@ XenosAudioProcessorEditor::XenosAudioProcessorEditor(
     , audioProcessor(p)
     , valueTreeState(vts)
     , customButton("load...")
-    , moreButton("more...")
     , keyboardComponent(p.keyboardState,
                         juce::MidiKeyboardComponent::horizontalKeyboard)
 {
@@ -53,6 +52,7 @@ XenosAudioProcessorEditor::XenosAudioProcessorEditor(
     initParamSlider(ampBeta, "ampBeta", "β", horizontal, green);
 
     formatHeaderLabel(envelopeLabel, "GLOBAL");
+    envelopeLabel.setInterceptsMouseClicks(false,false);
 
     initParamSlider(attack, "attack", "A", vertical, blue);
     initParamSlider(decay, "decay", "D", vertical, blue);
@@ -64,6 +64,10 @@ XenosAudioProcessorEditor::XenosAudioProcessorEditor(
                   29.16675f); // ideally refactor to use relative pixel value
     scale.setItemEnabled(customScaleMenuIndex, false);
     initParamSlider(root, "root", "ROOT", horizontal, blue);
+
+    
+    initParamMenu(voicepanmode,"voicePanningMode","VOICE PAN MODE",0.0f);
+    voicepanmode.setVisible(false);
 
     if (!audioProcessor.customScaleData.isEmpty()) {
         scale.changeItemText(customScaleMenuIndex,
@@ -81,37 +85,45 @@ XenosAudioProcessorEditor::XenosAudioProcessorEditor(
     addAndMakeVisible(customButton);
     customButton.addListener(this);
 
-    moreButton.setLookAndFeel(&xenosLookAndFeel);
-    addAndMakeVisible(moreButton);
-    moreButton.onClick=[this]()
-    {
-        juce::PopupMenu menu;
-        juce::PopupMenu panmenu;
-        auto vpmpar = dynamic_cast<juce::AudioParameterChoice*>(valueTreeState.getParameter("voicePanningMode"));
-        int curmode = *vpmpar;
-        juce::StringArray modenames{
-            "Always center",
-            "Alternating left/right",
-            "Random",
-            "Cyclical 1",
-            "Cyclical 2"};
-        for (int i=0;i<modenames.size();++i)
-        {
-            panmenu.addItem(modenames[i],true,curmode == i, [this,i,vpmpar]()
-            { 
-                *vpmpar = i;
-                audioProcessor.xenosAudioSource.setParam("voicePanningMode",i);
-            });
-        }
-        menu.addSubMenu("Voice pan mode",panmenu);
-        
-        menu.showMenuAsync(juce::PopupMenu::Options());
-    };
-
     addAndMakeVisible(keyboardComponent);
 }
 
 XenosAudioProcessorEditor::~XenosAudioProcessorEditor() {}
+
+void XenosAudioProcessorEditor::mouseDown(const juce::MouseEvent& ev)
+{
+    if (!envelopeLabel.getBounds().contains(ev.getPosition()))
+        return;
+    if (envelopeLabel.getText()=="GLOBAL")
+    {
+        envelopeLabel.setText("PAN/FILTER",juce::dontSendNotification);
+        attack.setVisible(false);
+        decay.setVisible(false);
+        sustain.setVisible(false);
+        release.setVisible(false);
+        segments.setVisible(false);
+
+        scale.setVisible(false);
+        customButton.setVisible(false);
+        root.setVisible(false);
+        voicepanmode.setVisible(true);
+    }
+    else 
+    {
+        envelopeLabel.setText("GLOBAL",juce::dontSendNotification);
+        attack.setVisible(true);
+        decay.setVisible(true);
+        sustain.setVisible(true);
+        release.setVisible(true);
+        segments.setVisible(true);
+
+        scale.setVisible(true);
+        customButton.setVisible(true);
+        root.setVisible(true);
+        voicepanmode.setVisible(false);
+    }
+    
+}
 
 //==============================================================================
 void XenosAudioProcessorEditor::paint(juce::Graphics& g)
@@ -174,6 +186,7 @@ void XenosAudioProcessorEditor::resized()
     auto panel1X3 = 2 * w / 3 + margin;
     envelopeLabel.setBounds(panel1X3, 0, panel1W, header);
 
+    
     attack.setBounds(panel1X3, vSliderY, panel1W / 4, vSliderH);
     decay.setBounds(panel1X3 + panel1W / 4, vSliderY, panel1W / 4, vSliderH);
     sustain.setBounds(panel1X3 + 2 * panel1W / 4, vSliderY, panel1W / 4,
@@ -187,6 +200,7 @@ void XenosAudioProcessorEditor::resized()
     auto menuW = panel1W / 2 - margin / 2;
     auto hSliderYOffset = panel2H / 3;
     auto hSliderW = panel1W + margin / 2;
+    voicepanmode.setBounds(panel1X3, vSliderY, menuW, menuH);
     pitchDistribution.setBounds(margin, panel2Y, menuW, menuH);
     pitchWalk.setBounds(margin + panel1W / 2 + margin / 2, panel2Y, menuW,
                         menuH);
@@ -205,7 +219,7 @@ void XenosAudioProcessorEditor::resized()
     root.setBounds(panel1X3, panel2Y + hSliderYOffset, hSliderW, menuH);
     segments.setBounds(panel1X3, panel2Y + hSliderYOffset * 2, hSliderW, menuH);
 
-    moreButton.setBounds(segments.getX(),segments.getBottom()+1,panel1W*0.25,menuH);
+    
 
     auto keyboardY = 13 * h / 16;
     keyboardComponent.setBounds(margin, keyboardY, w - margin * 2,

@@ -178,8 +178,9 @@ XenosAudioProcessor::XenosAudioProcessor()
             std::make_unique<juce::AudioParameterChoice>(
                juce::ParameterID{"voicePanningMode", 1}, "voicePanningMode",
                juce::StringArray{// choices
-                                 "always center", "left/right", "random", "cyclic 1",
-                                 "cyclic 2", "reserved", "reserved",
+                                 "always center", "left/right at note start", 
+                                 "random at note start", "cyclic 1 at note start",
+                                 "cyclic 2 at note start", "reserved", "reserved",
                                  "reserved", "reserved", "reserved"},
                0)})
 #endif

@@ -126,6 +126,7 @@ public:
                        float labelOffsetX = 0.0f);
     void buttonClicked(juce::Button* button) override;
     void loadCustomScale();
+    void mouseDown(const juce::MouseEvent& ev) override;
 private:
     XenosAudioProcessor& audioProcessor;
     juce::AudioProcessorValueTreeState& valueTreeState;
@@ -157,7 +158,8 @@ private:
     juce::TextButton customButton;
     ParamSlider root;
 
-    juce::TextButton moreButton;
+    ParamMenu voicepanmode;
+    
 
     juce::MidiKeyboardComponent keyboardComponent;
 
