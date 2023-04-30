@@ -49,6 +49,7 @@ juce_add_plugin(${APP_NAME}
     PLUGIN_CODE XNOS
     FORMATS ${BUILD_TYPES}        
     PRODUCT_NAME "Xenos"
+    BUNDLE_ID "com.RaphaelRadna.Xenos"
     LV2URI "https://github.com/raphaelradna/xenos"
 )
 

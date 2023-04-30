@@ -129,6 +129,16 @@ struct XenosCore {
     std::uniform_real_distribution<double> uniform{-1.0, 1.0};
 };
 
+enum class VoicePanMode
+{
+    AlwaysCenter,
+    AltLeftRight,
+    Random,
+    Sine1Cycle,
+    Sine2Cycles,
+    Last
+};
+
 //==============================================================================
 struct XenosSound : public juce::SynthesiserSound {
     XenosSound() 
@@ -139,27 +149,19 @@ struct XenosSound : public juce::SynthesiserSound {
     bool appliesToNote(int) override { return true; }
     bool appliesToChannel(int) override { return true; }
     
-    enum class VoicePanMode
-    {
-        AlwaysCenter,
-        AltLeftRight,
-        Random,
-        Sine1Cycle,
-        Sine2Cycles,
-        Last
-    };
+    
     std::minstd_rand rng;
     std::uniform_real_distribution<float> panDistribution{0.0f,1.0f};
-    VoicePanMode voicePanMode{VoicePanMode::Random};
-    float getPanPositionFromMidiKey(int key)
+    
+    float getPanPositionFromMidiKey(int key,VoicePanMode vpm)
     {
-        if (voicePanMode == VoicePanMode::AltLeftRight)
+        if (vpm == VoicePanMode::AltLeftRight)
             return (float)(key % 2);
-        else if (voicePanMode == VoicePanMode::Random)
+        else if (vpm == VoicePanMode::Random)
             return panDistribution(rng);
-        else if (voicePanMode == VoicePanMode::Sine1Cycle)
+        else if (vpm == VoicePanMode::Sine1Cycle)
             return std::sin(2*3.141592653/128*key);
-        else if (voicePanMode == VoicePanMode::Sine2Cycles)
+        else if (vpm == VoicePanMode::Sine2Cycles)
             return std::sin(2*3.141592653/128*key*2.0f);
         return 0.5f;
     }
@@ -196,7 +198,7 @@ struct XenosVoice : public juce::SynthesiserVoice {
         adsr.noteOn();
         xenos.reset();
         auto xsnd = dynamic_cast<XenosSound*>(snd);
-        panPosition = xsnd->getPanPositionFromMidiKey(note);
+        panPosition = xsnd->getPanPositionFromMidiKey(note,vpm);
     }
 
     void stopNote(float /*velocity*/, bool allowTailOff) override
@@ -232,6 +234,7 @@ struct XenosVoice : public juce::SynthesiserVoice {
 
     XenosCore xenos;
     juce::ADSR adsr;
+    VoicePanMode vpm = VoicePanMode::AlwaysCenter;
     float panPosition = 0.5f;
     float a = 0.1f, d = 0.1f, s = 1.0f, r = 0.1f;
     const double polyGainFactor = 1 / sqrt(NUM_VOICES / 4);
@@ -293,13 +296,14 @@ public:
                                    bufferToFill.startSample,
                                    bufferToFill.numSamples);
     }
-
+    
     void setParam(const juce::String& parameterID, float newValue)
     {
         for (int i = 0; i < xenosSynth.getNumVoices(); ++i) {
             auto voice = dynamic_cast<XenosVoice*>(xenosSynth.getVoice(i));
             XenosCore& xenos = voice->xenos;
-
+            if (parameterID == "voicePanningMode")
+                voice->vpm = (VoicePanMode)(int)newValue;
             if (parameterID == "segments") { xenos.nPoints_ = newValue; }
             if (parameterID == "pitchWidth") {
                 xenos.pitchWidth = newValue;
@@ -391,6 +395,7 @@ public:
         }
         return result;
     }
+    
 private:
     juce::MidiKeyboardState& keyboardState;
     juce::MidiBuffer midiBuffer;

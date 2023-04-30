@@ -174,7 +174,14 @@ XenosAudioProcessor::XenosAudioProcessor()
                juce::AudioParameterFloatAttributes()
                    .withStringFromValueFunction(
                        [](auto x, auto) { return juce::String(x, 3); })
-                   .withLabel("st"))})
+                   .withLabel("st")),
+            std::make_unique<juce::AudioParameterChoice>(
+               juce::ParameterID{"voicePanningMode", 1}, "voicePanningMode",
+               juce::StringArray{// choices
+                                 "always center", "left/right", "random", "cyclic 1",
+                                 "cyclic 2", "reserved", "reserved",
+                                 "reserved", "reserved", "reserved"},
+               0)})
 #endif
 {
     segmentsParam = params.getRawParameterValue("segments");

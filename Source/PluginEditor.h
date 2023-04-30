@@ -157,6 +157,8 @@ private:
     juce::TextButton customButton;
     ParamSlider root;
 
+    juce::TextButton moreButton;
+
     juce::MidiKeyboardComponent keyboardComponent;
 
     juce::Label pitchLabel, amplitudeLabel, envelopeLabel;

@@ -66,6 +66,7 @@ public:
     juce::StringArray customScaleData;
 
     XenosSynthAudioSource xenosAudioSource;
+    
 private:
     //==============================================================================
     juce::AudioProcessorValueTreeState params;

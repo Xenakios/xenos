@@ -20,6 +20,7 @@ XenosAudioProcessorEditor::XenosAudioProcessorEditor(
     , audioProcessor(p)
     , valueTreeState(vts)
     , customButton("load...")
+    , moreButton("more...")
     , keyboardComponent(p.keyboardState,
                         juce::MidiKeyboardComponent::horizontalKeyboard)
 {
@@ -79,6 +80,32 @@ XenosAudioProcessorEditor::XenosAudioProcessorEditor(
     customButton.setLookAndFeel(&xenosLookAndFeel);
     addAndMakeVisible(customButton);
     customButton.addListener(this);
+
+    moreButton.setLookAndFeel(&xenosLookAndFeel);
+    addAndMakeVisible(moreButton);
+    moreButton.onClick=[this]()
+    {
+        juce::PopupMenu menu;
+        juce::PopupMenu panmenu;
+        auto vpmpar = dynamic_cast<juce::AudioParameterChoice*>(valueTreeState.getParameter("voicePanningMode"));
+        int curmode = *vpmpar;
+        juce::StringArray modenames{
+            "Always center",
+            "Alternating left/right",
+            "Random",
+            "Cyclical 1",
+            "Cyclical 2"};
+        for (int i=0;i<modenames.size();++i)
+        {
+            panmenu.addItem(modenames[i],true,curmode == i, [this,i,vpmpar]()
+            { 
+                *vpmpar = i;
+            });
+        }
+        menu.addSubMenu("Voice pan mode",panmenu);
+        
+        menu.showMenuAsync(juce::PopupMenu::Options());
+    };
 
     addAndMakeVisible(keyboardComponent);
 }
@@ -176,6 +203,8 @@ void XenosAudioProcessorEditor::resized()
                            menuH);
     root.setBounds(panel1X3, panel2Y + hSliderYOffset, hSliderW, menuH);
     segments.setBounds(panel1X3, panel2Y + hSliderYOffset * 2, hSliderW, menuH);
+
+    moreButton.setBounds(segments.getX(),segments.getBottom()+1,panel1W*0.25,menuH);
 
     auto keyboardY = 13 * h / 16;
     keyboardComponent.setBounds(margin, keyboardY, w - margin * 2,
