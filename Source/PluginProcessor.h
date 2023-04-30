@@ -100,5 +100,7 @@ private:
 
     const int customScaleParamIndex = SCALE_PRESETS + 1;
 
+    juce::dsp::StateVariableTPTFilter<float> outputFilter;
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(XenosAudioProcessor)
 };

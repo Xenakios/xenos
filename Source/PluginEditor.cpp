@@ -100,6 +100,7 @@ XenosAudioProcessorEditor::XenosAudioProcessorEditor(
             panmenu.addItem(modenames[i],true,curmode == i, [this,i,vpmpar]()
             { 
                 *vpmpar = i;
+                audioProcessor.xenosAudioSource.setParam("voicePanningMode",i);
             });
         }
         menu.addSubMenu("Voice pan mode",panmenu);

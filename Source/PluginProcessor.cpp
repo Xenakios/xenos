@@ -272,6 +272,14 @@ void XenosAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     // initialisation that you need..
 
     xenosAudioSource.prepareToPlay(samplesPerBlock, sampleRate);
+    juce::dsp::ProcessSpec spec;
+    spec.numChannels = 2;
+    spec.maximumBlockSize = samplesPerBlock;
+    spec.sampleRate = sampleRate;
+    outputFilter.prepare(spec);
+    outputFilter.setType(juce::dsp::StateVariableTPTFilterType::highpass);
+    outputFilter.setCutoffFrequency(16.0f);
+    outputFilter.setResonance(1.0/std::sqrt(2.0f));
 }
 
 void XenosAudioProcessor::releaseResources()
@@ -315,6 +323,9 @@ void XenosAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     xenosAudioSource.setMidiBuffer(midiMessages);
     juce::AudioSourceChannelInfo channelInfo(buffer);
     xenosAudioSource.getNextAudioBlock(channelInfo);
+    juce::dsp::AudioBlock<float> block(buffer);
+    juce::dsp::ProcessContextReplacing<float> ctx(block);
+    outputFilter.process(ctx);
 }
 
 //==============================================================================
