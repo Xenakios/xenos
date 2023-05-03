@@ -184,11 +184,18 @@ XenosAudioProcessor::XenosAudioProcessor()
                    .withLabel(" Hz")),
             std::make_unique<juce::AudioParameterChoice>(
                juce::ParameterID{"voicePanningMode", 1}, "voicePanningMode",
-               juce::StringArray{// choices
-                                 "always center", "left/right at note start", 
-                                 "random at note start", "cyclic 1 at note start",
-                                 "cyclic 2 at note start", "reserved", "reserved",
-                                 "reserved", "reserved", "reserved"},
+               juce::StringArray{
+                                 "always center", 
+                                 "random", 
+                                 "left/right (keytracked)", 
+                                 "left/center/right (keytracked)",
+                                 
+                                 "spread type 1 (keytracked)",
+                                 "spread type 2 (keytracked)", 
+                                 "left/right alternating", 
+                                 "left/center/right alternating",
+                                 "reserved", 
+                                 "reserved"},
                0)})
 #endif
 {
@@ -327,6 +334,16 @@ bool XenosAudioProcessor::isBusesLayoutSupported(
 }
 #endif
 
+template<typename F>
+inline void update_dsp_if_needed(float& previousvalue, float newvalue,F&& f)
+{
+    if (previousvalue!=newvalue)
+    {
+        f(newvalue);
+        previousvalue = newvalue;
+    }
+}
+
 void XenosAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                                        juce::MidiBuffer& midiMessages)
 {
@@ -335,7 +352,9 @@ void XenosAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     xenosAudioSource.getNextAudioBlock(channelInfo);
     juce::dsp::AudioBlock<float> block(buffer);
     juce::dsp::ProcessContextReplacing<float> ctx(block);
-    outputFilter.setCutoffFrequency(*hpFilterParam);
+    // we could probably afford setting the filter frequency always, but let's do this optimization here
+    update_dsp_if_needed(previousOutputFilterFrequency,*hpFilterParam,[this](float x)
+        { outputFilter.setCutoffFrequency(x); });
     outputFilter.process(ctx);
 }
 

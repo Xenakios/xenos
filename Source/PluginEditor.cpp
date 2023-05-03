@@ -66,7 +66,7 @@ XenosAudioProcessorEditor::XenosAudioProcessorEditor(
     initParamSlider(root, "root", "ROOT", horizontal, blue);
 
     
-    initParamMenu(voicepanmode,"voicePanningMode","VOICE PAN MODE",0.0f,audioProcessor.numActualVoicePanModes);
+    initParamMenu(voicepanmode,"voicePanningMode","VOICE PAN MODE",0.0f);
     voicepanmode.setVisible(false);
     initParamSlider(mainhpfilter, "mainhpfilterfrequency", "Main highpass filter", horizontal, blue);
     mainhpfilter.setVisible(false);
@@ -205,7 +205,7 @@ void XenosAudioProcessorEditor::resized()
     auto hSliderYOffset = panel2H / 3;
     auto hSliderW = panel1W + margin / 2;
     
-    voicepanmode.setBounds(panel1X3, vSliderY, menuW, menuH);
+    voicepanmode.setBounds(panel1X3, vSliderY, panel1W-margin/2, menuH);
     mainhpfilter.setBounds(voicepanmode.getX(), voicepanmode.getBottom()+25, hSliderW, menuH);
     
     pitchDistribution.setBounds(margin, panel2Y, menuW, menuH);

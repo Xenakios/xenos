@@ -133,10 +133,13 @@ struct XenosCore {
 enum class VoicePanMode
 {
     AlwaysCenter,
-    AltLeftRight,
     Random,
+    AltLeftRight,
+    AltLeftCenterRight,
     Sine1Cycle,
     Sine2Cycles,
+    AltLeftRight2,
+    AltLeftCenterRight2,
     Last
 };
 
@@ -153,24 +156,31 @@ struct XenosSound : public juce::SynthesiserSound {
     
     std::minstd_rand rng;
     std::uniform_real_distribution<float> panDistribution{0.0f,1.0f};
-    
-    float getPanPositionFromMidiKey(int key,VoicePanMode vpm)
+    // returns value in range 0.0 to 1.0, 0.5 center
+    float getPanPositionFromMidiKey(int key,VoicePanMode vpm, int* notecounter)
     {
+        const float positions[3]={0.0f,0.5f,1.0f};
         if (vpm == VoicePanMode::AltLeftRight)
             return (float)(key % 2);
+        else if (vpm == VoicePanMode::AltLeftCenterRight)
+            return positions[key % 3];
         else if (vpm == VoicePanMode::Random)
             return panDistribution(rng);
         else if (vpm == VoicePanMode::Sine1Cycle)
-            return std::sin(2*3.141592653/128*key);
+            return 0.5+0.5*std::sin(2*juce::MathConstants<float>::pi/128*key);
         else if (vpm == VoicePanMode::Sine2Cycles)
-            return std::sin(2*3.141592653/128*key*2.0f);
+            return 0.5+0.5*std::sin(2*juce::MathConstants<float>::pi/128*key*2.0f);
+        else if (vpm == VoicePanMode::AltLeftRight2 && notecounter!=nullptr)
+            return (*notecounter) % 2;
+        else if (vpm == VoicePanMode::AltLeftCenterRight2 && notecounter!=nullptr)
+            return positions[(*notecounter) % 3];
         return 0.5f;
     }
 };
 
 //==============================================================================
 struct XenosVoice : public juce::SynthesiserVoice {
-    XenosVoice() {}
+    XenosVoice(int* notecounter_) : noteCounter(notecounter_) {}
 
     bool canPlaySound(juce::SynthesiserSound* sound) override
     {
@@ -199,7 +209,7 @@ struct XenosVoice : public juce::SynthesiserVoice {
         adsr.noteOn();
         xenos.reset();
         auto xsnd = dynamic_cast<XenosSound*>(snd);
-        float panPosition = xsnd->getPanPositionFromMidiKey(note,vpm);
+        float panPosition = xsnd->getPanPositionFromMidiKey(note,vpm,noteCounter);
         sst::basic_blocks::dsp::pan_laws::monoEqualPower(panPosition,panmatrix);
     }
 
@@ -239,7 +249,7 @@ struct XenosVoice : public juce::SynthesiserVoice {
     juce::ADSR adsr;
     VoicePanMode vpm = VoicePanMode::AlwaysCenter;
     sst::basic_blocks::dsp::pan_laws::panmatrix_t panmatrix;
-    
+    int* noteCounter = nullptr;
     float a = 0.1f, d = 0.1f, s = 1.0f, r = 0.1f;
     const double polyGainFactor = 1 / sqrt(NUM_VOICES / 4);
 };
@@ -259,9 +269,11 @@ public:
                     = findFreeVoice(sound, midiChannel, midiNoteNumber,
                                     isNoteStealingEnabled());
                 startVoice(voice, sound, midiChannel, midiNoteNumber, velocity);
+                ++noteCounter;
             }
         }
     }
+    int noteCounter = 0;
 private:
 };
 
@@ -272,7 +284,7 @@ public:
         : keyboardState(keyState)
     {
         for (auto i = 0; i < NUM_VOICES; ++i)
-            xenosSynth.addVoice(new XenosVoice());
+            xenosSynth.addVoice(new XenosVoice(&xenosSynth.noteCounter));
 
         xenosSynth.addSound(new XenosSound());
     }
@@ -307,7 +319,11 @@ public:
             auto voice = dynamic_cast<XenosVoice*>(xenosSynth.getVoice(i));
             XenosCore& xenos = voice->xenos;
             if (parameterID == "voicePanningMode")
+            {
                 voice->vpm = (VoicePanMode)(int)newValue;
+                //DBG("voice pan mode " << newValue);
+            }
+                
             if (parameterID == "segments") { xenos.nPoints_ = newValue; }
             if (parameterID == "pitchWidth") {
                 xenos.pitchWidth = newValue;
