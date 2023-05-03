@@ -193,8 +193,10 @@ XenosAudioProcessor::XenosAudioProcessor()
                                  "spread type 2 (keytracked)", 
                                  "left/right alternating", 
                                  "left/center/right alternating",
-                                 "reserved", 
-                                 "reserved"},
+                                 "random modulated type 1", 
+                                 "random modulated type 2",
+                                 "random modulated type 3",
+                                 "random modulated type 4"},
                0)})
 #endif
 {

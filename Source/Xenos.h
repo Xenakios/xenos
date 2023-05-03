@@ -19,6 +19,7 @@
 #include "RandomSource.h"
 #include "Utility.h"
 #include "sst/basic-blocks/dsp/PanLaws.h"
+#include "sst/basic-blocks/modulators/SimpleLFO.h"
 
 #define MAX_POINTS (128)
 #define NUM_VOICES (128)
@@ -140,8 +141,44 @@ enum class VoicePanMode
     Sine2Cycles,
     AltLeftRight2,
     AltLeftCenterRight2,
+    RandomPerVoice1,
+    RandomPerVoice2,
+    RandomPerVoice3,
+    RandomPerVoice4,
     Last
 };
+
+struct SRProvider
+{
+    static constexpr int BLOCK_SIZE = 32;
+    static constexpr int BLOCK_SIZE_OS = BLOCK_SIZE * 2;
+    SRProvider()
+    {
+        initTables();
+    }
+    alignas(32) float table_envrate_linear[512];
+    double samplerate = 44100.0;
+    void initTables()
+    {
+        double dsamplerate_os = samplerate*2;
+        for (int i=0;i<512;++i)
+        {
+            double k = dsamplerate_os * pow(2.0, (((double)i - 256.0) / 16.0)) / (double)BLOCK_SIZE_OS;
+            table_envrate_linear[i] = (float)(1.f / k);
+        }
+    }
+    float envelope_rate_linear_nowrap(float x)
+    {
+        x *= 16.f;
+        x += 256.f;
+        int e = std::clamp<int>((int)x, 0, 0x1ff - 1);
+        
+        float a = x - (float)e;
+
+        return (1 - a) * table_envrate_linear[e & 0x1ff] + a * table_envrate_linear[(e + 1) & 0x1ff];
+    }
+};
+
 
 //==============================================================================
 struct XenosSound : public juce::SynthesiserSound {
@@ -180,7 +217,11 @@ struct XenosSound : public juce::SynthesiserSound {
 
 //==============================================================================
 struct XenosVoice : public juce::SynthesiserVoice {
-    XenosVoice(int* notecounter_) : noteCounter(notecounter_) {}
+    SRProvider* srprovider = nullptr;
+    XenosVoice(int* notecounter_,SRProvider* sp) : srprovider(sp), noteCounter(notecounter_) 
+    {
+        lfo1 = std::make_unique<LFOType>(sp);
+    }
 
     bool canPlaySound(juce::SynthesiserSound* sound) override
     {
@@ -193,6 +234,8 @@ struct XenosVoice : public juce::SynthesiserVoice {
             xenos.initialize(newRate);
             adsr.setSampleRate(newRate);
             updateADSR();
+            srprovider->samplerate = newRate;
+            srprovider->initTables();
         }
     }
 
@@ -208,9 +251,7 @@ struct XenosVoice : public juce::SynthesiserVoice {
         xenos.setBend(currentPitchWheelPosition);
         adsr.noteOn();
         xenos.reset();
-        auto xsnd = dynamic_cast<XenosSound*>(snd);
-        float panPosition = xsnd->getPanPositionFromMidiKey(note,vpm,noteCounter);
-        sst::basic_blocks::dsp::pan_laws::monoEqualPower(panPosition,panmatrix);
+        lfo_updatecounter = 0;
     }
 
     void stopNote(float /*velocity*/, bool allowTailOff) override
@@ -235,12 +276,37 @@ struct XenosVoice : public juce::SynthesiserVoice {
                          int numSamples) override
     {
         if (adsr.isActive()) {
-            // pan matrix has been calculated at note start
-            float gainLeft = panmatrix[0];
-            float gainRight = panmatrix[3];
+            
             float atVolume = juce::jmap(afterTouchAmount,0.0f,1.0f,0.0f,10.0f);
             atVolume = juce::Decibels::decibelsToGain(atVolume);
+            
+            const float lfo_pars0[4] = {1.0f,3.0f,0.25f,5.0f};
+            const float lfo_pars1[4] = {0.75f,0.45f,0.20f,0.95f};
+            
+            int panlfomode = (int)vpm - (int)VoicePanMode::RandomPerVoice1;
             while (--numSamples >= 0) {
+                if (lfo_updatecounter == 0)
+                {
+                    float panposition = 0.5f;
+                    if (panlfomode>=0 && panlfomode<4)
+                    {
+                        lfo1->process_block(lfo_pars0[panlfomode],lfo_pars1[panlfomode],
+                            LFOType::Shape::SMOOTH_NOISE,false);
+                        // we use only the first value from the LFO output block, which is a bit wasteful
+                        // but we'd need to do the pan law calculation per sample if we used all the LFO output...
+                        panposition = 0.5f+0.5f*lfo1->outputBlock[0];
+                    } else
+                    {
+                        auto xsnd = dynamic_cast<XenosSound*>(getCurrentlyPlayingSound().get());
+                        panposition = xsnd->getPanPositionFromMidiKey(getCurrentlyPlayingNote(),vpm,noteCounter);
+                    }
+                    sst::basic_blocks::dsp::pan_laws::monoEqualPower(panposition,panmatrix);
+                }
+                ++lfo_updatecounter;
+                if (lfo_updatecounter == srprovider->BLOCK_SIZE)
+                    lfo_updatecounter = 0;
+                float gainLeft = panmatrix[0];
+                float gainRight = panmatrix[3];        
                 auto currentSample
                     = xenos() * adsr.getNextSample() * polyGainFactor * atVolume;
                 //for (auto i = outputBuffer.getNumChannels(); --i >= 0;)
@@ -255,12 +321,15 @@ struct XenosVoice : public juce::SynthesiserVoice {
 
     XenosCore xenos;
     juce::ADSR adsr;
+    using LFOType = sst::basic_blocks::modulators::SimpleLFO<SRProvider,32>;
+    std::unique_ptr<LFOType> lfo1;
     VoicePanMode vpm = VoicePanMode::AlwaysCenter;
     sst::basic_blocks::dsp::pan_laws::panmatrix_t panmatrix;
     int* noteCounter = nullptr;
     float afterTouchAmount = 0.0f;
     float a = 0.1f, d = 0.1f, s = 1.0f, r = 0.1f;
     const double polyGainFactor = 1 / sqrt(NUM_VOICES / 4);
+    int lfo_updatecounter = 0;
 };
 
 //==============================================================================
@@ -289,11 +358,12 @@ private:
 //==============================================================================
 class XenosSynthAudioSource : public juce::AudioSource {
 public:
+    SRProvider srProvider;
     XenosSynthAudioSource(juce::MidiKeyboardState& keyState)
         : keyboardState(keyState)
     {
         for (auto i = 0; i < NUM_VOICES; ++i)
-            xenosSynth.addVoice(new XenosVoice(&xenosSynth.noteCounter));
+            xenosSynth.addVoice(new XenosVoice(&xenosSynth.noteCounter,&srProvider));
 
         xenosSynth.addSound(new XenosSound());
     }
@@ -303,6 +373,8 @@ public:
     void prepareToPlay(int /*samplesPerBlockExpected*/,
                        double sampleRate) override
     {
+        srProvider.samplerate = sampleRate;
+        srProvider.initTables();
         xenosSynth.setCurrentPlaybackSampleRate(sampleRate);
     }
 
