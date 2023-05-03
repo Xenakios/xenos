@@ -167,9 +167,9 @@ struct XenosSound : public juce::SynthesiserSound {
         else if (vpm == VoicePanMode::Random)
             return panDistribution(rng);
         else if (vpm == VoicePanMode::Sine1Cycle)
-            return 0.5+0.5*std::sin(2*juce::MathConstants<float>::pi/128*key);
+            return 0.5+0.5*std::sin(2*juce::MathConstants<float>::pi/128*key*5.0f);
         else if (vpm == VoicePanMode::Sine2Cycles)
-            return 0.5+0.5*std::sin(2*juce::MathConstants<float>::pi/128*key*2.0f);
+            return 0.5+0.5*std::sin(2*juce::MathConstants<float>::pi/128*key*10.0f);
         else if (vpm == VoicePanMode::AltLeftRight2 && notecounter!=nullptr)
             return (*notecounter) % 2;
         else if (vpm == VoicePanMode::AltLeftCenterRight2 && notecounter!=nullptr)
@@ -238,7 +238,7 @@ struct XenosVoice : public juce::SynthesiserVoice {
             // pan matrix has been calculated at note start
             float gainLeft = panmatrix[0];
             float gainRight = panmatrix[3];
-            float atVolume = juce::jmap(afterTouchAmount,0.0f,1.0f,-6.0f,6.0f);
+            float atVolume = juce::jmap(afterTouchAmount,0.0f,1.0f,0.0f,10.0f);
             atVolume = juce::Decibels::decibelsToGain(atVolume);
             while (--numSamples >= 0) {
                 auto currentSample
