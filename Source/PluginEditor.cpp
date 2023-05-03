@@ -66,7 +66,7 @@ XenosAudioProcessorEditor::XenosAudioProcessorEditor(
     initParamSlider(root, "root", "ROOT", horizontal, blue);
 
     
-    initParamMenu(voicepanmode,"voicePanningMode","VOICE PAN MODE",0.0f);
+    initParamMenu(voicepanmode,"voicePanningMode","VOICE PAN MODE",0.0f,audioProcessor.numActualVoicePanModes);
     voicepanmode.setVisible(false);
     initParamSlider(mainhpfilter, "mainhpfilterfrequency", "Main highpass filter", horizontal, blue);
     mainhpfilter.setVisible(false);
@@ -301,14 +301,20 @@ void XenosAudioProcessorEditor::initParamSlider(ParamSlider& slider,
 }
 
 void XenosAudioProcessorEditor::initParamMenu(ParamMenu& menu, std::string p,
-                                              std::string d, float labelOffsetX)
+                                              std::string d, float labelOffsetX, int numEntriesToAdd)
 {
     menu.param = p;
     menu.disp = d;
 
     auto paramObject = dynamic_cast<juce::AudioParameterChoice*>(
         valueTreeState.getParameter(menu.param));
-    menu.addItemList(paramObject->choices, 1);
+    if (numEntriesToAdd==0)
+        menu.addItemList(paramObject->choices, 1);
+    else
+    {
+        for (int i=0;i<numEntriesToAdd;++i)
+            menu.addItem(paramObject->choices[i],i+1);
+    }
     addAndMakeVisible(menu);
     menu.attachment.reset(
         new ComboBoxAttachment(valueTreeState, menu.param, menu));

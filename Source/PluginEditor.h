@@ -122,8 +122,10 @@ public:
     void initParamSlider(ParamSlider& slider, std::string p, std::string d,
                          sliderStyle s = vertical,
                          juce::Colour c = juce::Colours::red);
+    // if numEntriesToAdd is 0, all choices from the choice parameter are added,
+    // otherwise the provided number is used, useful for for leaving out "reserved" choice entries
     void initParamMenu(ParamMenu& menu, std::string p, std::string d,
-                       float labelOffsetX = 0.0f);
+                       float labelOffsetX = 0.0f, int numEntriesToAdd=0);
     void buttonClicked(juce::Button* button) override;
     void loadCustomScale();
     void mouseDown(const juce::MouseEvent& ev) override;

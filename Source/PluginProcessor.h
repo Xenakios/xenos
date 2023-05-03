@@ -66,7 +66,7 @@ public:
     juce::StringArray customScaleData;
 
     XenosSynthAudioSource xenosAudioSource;
-    
+    const int numActualVoicePanModes = 5;
 private:
     //==============================================================================
     juce::AudioProcessorValueTreeState params;
