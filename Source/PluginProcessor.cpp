@@ -186,10 +186,9 @@ XenosAudioProcessor::XenosAudioProcessor()
                juce::ParameterID{"voicePanningMode", 1}, "voicePanningMode",
                juce::StringArray{
                                  "always center", 
-                                 "random", 
+                                 "random (uniform)", 
                                  "left/right (keytracked)", 
                                  "left/center/right (keytracked)",
-                                 
                                  "spread type 1 (keytracked)",
                                  "spread type 2 (keytracked)", 
                                  "left/right alternating", 

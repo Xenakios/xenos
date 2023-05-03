@@ -225,6 +225,12 @@ struct XenosVoice : public juce::SynthesiserVoice {
 
     void controllerMoved(int, int) override {}
 
+    void aftertouchChanged (int newAftertouchValue) override
+    {
+        afterTouchAmount = newAftertouchValue/127.0;
+    }
+
+
     void renderNextBlock(juce::AudioSampleBuffer& outputBuffer, int startSample,
                          int numSamples) override
     {
@@ -232,9 +238,11 @@ struct XenosVoice : public juce::SynthesiserVoice {
             // pan matrix has been calculated at note start
             float gainLeft = panmatrix[0];
             float gainRight = panmatrix[3];
+            float atVolume = juce::jmap(afterTouchAmount,0.0f,1.0f,-6.0f,6.0f);
+            atVolume = juce::Decibels::decibelsToGain(atVolume);
             while (--numSamples >= 0) {
                 auto currentSample
-                    = xenos() * adsr.getNextSample() * polyGainFactor;
+                    = xenos() * adsr.getNextSample() * polyGainFactor * atVolume;
                 //for (auto i = outputBuffer.getNumChannels(); --i >= 0;)
                     outputBuffer.addSample(0, startSample, currentSample * gainLeft);
                     outputBuffer.addSample(1, startSample, currentSample * gainRight);
@@ -250,6 +258,7 @@ struct XenosVoice : public juce::SynthesiserVoice {
     VoicePanMode vpm = VoicePanMode::AlwaysCenter;
     sst::basic_blocks::dsp::pan_laws::panmatrix_t panmatrix;
     int* noteCounter = nullptr;
+    float afterTouchAmount = 0.0f;
     float a = 0.1f, d = 0.1f, s = 1.0f, r = 0.1f;
     const double polyGainFactor = 1 / sqrt(NUM_VOICES / 4);
 };
