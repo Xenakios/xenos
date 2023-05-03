@@ -53,6 +53,8 @@ juce_add_plugin(${APP_NAME}
     LV2URI "https://github.com/raphaelradna/xenos"
 )
 
+include_directories(libs/sst-basic-blocks/include)
+
 target_sources(${APP_NAME} PRIVATE
     Source/PluginEditor.cpp
     Source/PluginProcessor.cpp
@@ -104,6 +106,7 @@ JUCE_MODAL_LOOPS_PERMITTED=1
 DONT_SET_USING_JUCE_NAMESPACE=1
 JUCE_DONT_DECLARE_PROJECTINFO=1
 JUCE_TARGET_HAS_BINARY_DATA=1
+_USE_MATH_DEFINES=1
 )
 
 set_target_properties(${APP_NAME} PROPERTIES

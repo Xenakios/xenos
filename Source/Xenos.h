@@ -18,6 +18,7 @@
 #include "RandomWalk.h"
 #include "RandomSource.h"
 #include "Utility.h"
+#include "sst/basic-blocks/dsp/PanLaws.h"
 
 #define MAX_POINTS (128)
 #define NUM_VOICES (128)
@@ -198,7 +199,8 @@ struct XenosVoice : public juce::SynthesiserVoice {
         adsr.noteOn();
         xenos.reset();
         auto xsnd = dynamic_cast<XenosSound*>(snd);
-        panPosition = xsnd->getPanPositionFromMidiKey(note,vpm);
+        float panPosition = xsnd->getPanPositionFromMidiKey(note,vpm);
+        sst::basic_blocks::dsp::pan_laws::monoEqualPower(panPosition,panmatrix);
     }
 
     void stopNote(float /*velocity*/, bool allowTailOff) override
@@ -217,8 +219,9 @@ struct XenosVoice : public juce::SynthesiserVoice {
                          int numSamples) override
     {
         if (adsr.isActive()) {
-            float gainLeft = panPosition;
-            float gainRight = 1.0f-panPosition;
+            // pan matrix has been calculated at note start
+            float gainLeft = panmatrix[0];
+            float gainRight = panmatrix[3];
             while (--numSamples >= 0) {
                 auto currentSample
                     = xenos() * adsr.getNextSample() * polyGainFactor;
@@ -235,7 +238,8 @@ struct XenosVoice : public juce::SynthesiserVoice {
     XenosCore xenos;
     juce::ADSR adsr;
     VoicePanMode vpm = VoicePanMode::AlwaysCenter;
-    float panPosition = 0.5f;
+    sst::basic_blocks::dsp::pan_laws::panmatrix_t panmatrix;
+    
     float a = 0.1f, d = 0.1f, s = 1.0f, r = 0.1f;
     const double polyGainFactor = 1 / sqrt(NUM_VOICES / 4);
 };
