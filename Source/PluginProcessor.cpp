@@ -227,6 +227,7 @@ XenosAudioProcessor::XenosAudioProcessor()
     rootParam = params.getRawParameterValue("root");
 
     hpFilterParam = params.getRawParameterValue("mainhpfilterfrequency");
+    
 }
 
 XenosAudioProcessor::~XenosAudioProcessor() {}
