@@ -52,7 +52,8 @@ struct Quantizer2
     {
         try
         {
-            auto scale = Tunings::readSCLFile(R"(C:\develop\AdditiveSynth\scala\05-19.scl)");
+            auto scale = Tunings::readSCLFile(
+                R"(C:\Users\teemu\Documents\Rack2\plugins\Xenakios\res\scala_scales\pure fifths.scl)");
             auto kbm = Tunings::startScaleOnAndTuneNoteTo(0, 69, 440.0);
             tuning = Tunings::Tuning(scale, kbm);
         }
