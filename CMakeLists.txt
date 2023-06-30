@@ -53,7 +53,10 @@ juce_add_plugin(${APP_NAME}
     LV2URI "https://github.com/raphaelradna/xenos"
 )
 
-include_directories(libs/sst-basic-blocks/include)
+include_directories(
+    libs/sst-basic-blocks/include
+    libs/tuning-library/include
+    )
 
 target_sources(${APP_NAME} PRIVATE
     Source/PluginEditor.cpp
