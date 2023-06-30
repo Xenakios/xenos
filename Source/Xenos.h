@@ -24,6 +24,55 @@
 #define MAX_POINTS (128)
 #define NUM_VOICES (128)
 
+#include "Tunings.h"
+
+// obviously need a better solution for this...
+// i guess we could precalculate all the possible frequencies into a sorted vector/array
+// and do a binary search
+inline double findClosestFrequency(const Tunings::Tuning &tuning, double sourceFrequency)
+{
+    double lastdiff = 10000000.0;
+    double found = 0.0;
+    for (int i = 0; i < 512; ++i)
+    {
+        double hz = tuning.frequencyForMidiNote(i);
+        double diff = std::abs(hz - sourceFrequency);
+        if (diff < lastdiff)
+        {
+            lastdiff = diff;
+            found = hz;
+        }
+    }
+    return found;
+}
+
+struct Quantizer2
+{
+    Quantizer2()
+    {
+        try
+        {
+            auto scale = Tunings::readSCLFile(R"(C:\develop\AdditiveSynth\scala\05-19.scl)");
+            auto kbm = Tunings::startScaleOnAndTuneNoteTo(0, 69, 440.0);
+            tuning = Tunings::Tuning(scale, kbm);
+        }
+        catch (std::exception &ex)
+        {
+            std::cout << ex.what() << "\n";
+        }
+    }
+    void update(double sourceHz)
+    {
+        double hz = findClosestFrequency(tuning, sourceHz);
+        if (hz > 0.0)
+            curHz = hz;
+        else
+            curHz = sourceHz;
+    }
+    double curHz = 0.0;
+    Tunings::Tuning tuning;
+};
+
 struct XenosCore
 {
     void initialize(double sr)
@@ -33,6 +82,7 @@ struct XenosCore
         ampWalk.initialize(MAX_POINTS);
         ampWalk.setParams(1.0);
         reset();
+        quan2.curHz = 440.0;
     }
 
     void reset()
@@ -60,13 +110,16 @@ struct XenosCore
         periodRange[1] = mtos(max, sampleRate);
         quantizer.setRange(max, min);
     }
-
+    double curHz = 440.0;
     double operator()()
     {
         if (index < 0.0)
             index = 0.0;
         int intdex = floor(index);
-        double segmentSamps = pitchWalk(intdex, quantizer.getFactor()) * bend;
+        double quanhz = quan2.curHz;
+        double quanfactor = curHz / quanhz;
+        // double segmentSamps = pitchWalk(intdex, quantizer.getFactor()) * bend;
+        double segmentSamps = pitchWalk(intdex, quanfactor) * bend;
         double increment = 1 / segmentSamps;
 
         if (intdex != _index)
@@ -79,10 +132,13 @@ struct XenosCore
 
         if (index >= nPoints)
         {
-            quantizer.setFactor(pitchWalk.getSumPeriod());
+            // quantizer.setFactor(pitchWalk.getSumPeriod());
+
             index -= nPoints;
             if (nPoints_ > 0)
                 setNPoints();
+            curHz = sampleRate / pitchWalk.getSumPeriod();
+            quan2.update(curHz);
         }
         return ampWalk(index, nPoints);
     }
@@ -103,6 +159,8 @@ struct XenosCore
     void setPitchCenter(float pC)
     {
         pitchCenter = pC;
+        pitchCenter = quan2.tuning.logScaledFrequencyForMidiNote(pC) * 12.0;
+        curHz = quan2.tuning.frequencyForMidiNote(pC);
         calcMetaParams();
     }
 
@@ -136,6 +194,7 @@ struct XenosCore
     RandomWalk pitchWalk, ampWalk;
     RandomSource pitchSource, ampSource;
     Quantizer quantizer;
+    Quantizer2 quan2;
     std::default_random_engine generator;
     std::uniform_real_distribution<double> uniform{-1.0, 1.0};
 };
@@ -250,7 +309,7 @@ struct XenosVoice : public juce::SynthesiserVoice
     void startNote(int note, float velocity, juce::SynthesiserSound *snd,
                    int currentPitchWheelPosition) override
     {
-        xenos.pitchCenter = note;
+        xenos.setPitchCenter(note);
         xenos.setBend(currentPitchWheelPosition);
         adsr.noteOn();
         xenos.reset();

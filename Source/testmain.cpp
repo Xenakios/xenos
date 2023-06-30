@@ -20,7 +20,7 @@ void test_xenoscore()
     XenosSynthAudioSource source(state);
 
     core.setPitchWidth(12.0f);
-    core.setPitchCenter(69.0f);
+    core.setPitchCenter(67.0f);
     core.pitchWalk.setStepRatio(0.8);
     core.quantizer.setActive(true);
     core.quantizer.setScale(0);
@@ -35,27 +35,8 @@ void test_xenoscore()
     writer->writeFromAudioSampleBuffer(buffer, 0, nsamples);
 }
 
-// obviously need a better solution for this...
-// i guess we could precalculate all the possible frequencies into a sorted vector/array
-// and do a binary search
-inline double findClosestFrequency(const Tunings::Tuning &tuning, double sourceFrequency)
-{
-    double lastdiff = 10000000.0;
-    double found = 0.0;
-    for (int i = 0; i < 512; ++i)
-    {
-        double hz = tuning.frequencyForMidiNote(i);
-        double diff = std::abs(hz - sourceFrequency);
-        if (diff < lastdiff)
-        {
-            lastdiff = diff;
-            found = hz;
-        }
-    }
-    return found;
-}
 
-void test_sst_tuning()
+inline void test_sst_tuning()
 {
     try
     {
@@ -79,7 +60,7 @@ void test_sst_tuning()
 
 int main()
 {
-    test_sst_tuning();
-    // test_xenoscore();
+    //test_sst_tuning();
+    test_xenoscore();
     return 0;
 }
