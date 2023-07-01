@@ -15,7 +15,7 @@
 #include <JuceHeader.h>
 #include "Xenos.h"
 
-#define SCALE_PRESETS (14)
+
 
 //==============================================================================
 /**
