@@ -113,7 +113,7 @@ struct Quantizer2
             tuning = Tunings::Tuning(scale, kbm);
             return "";
         }
-        catch(std::exception& ex)
+        catch (std::exception &ex)
         {
             return ex.what();
         }
@@ -126,41 +126,33 @@ struct Quantizer2
             scaleFromRatios({1.122462, 1.259921, 1.498307, 1.681793, 2.0})); // pentatonic
         scalePresets.push_back(
             scaleFromRatios({1.125, 1.265625, 1.5, 1.6875, 2.0})); // pentatonic (pythagorean)
-        for (int i = 0; i < 12; ++i)
-            scalePresets.push_back(
-                scaleFromRatios({1.189207, 1.33484, 1.414214, 1.498307, 1.781797, 2.0})); // blues
-        // scalePresets.push_back(Tunings::evenTemperament12NoteScale()); // custom placeholder
+        scalePresets.push_back(
+            scaleFromRatios({1.189207, 1.33484, 1.414214, 1.498307, 1.781797, 2.0})); // blues
+
+        scalePresets.push_back(
+            scaleFromRatios({1.166667, 1.333333, 1.4, 1.5, 1.75, 2.0})); // blues (7-limit)
+        scalePresets.push_back(
+            scaleFromRatios({1.122462, 1.259921, 1.414214, 1.587401, 1.781797, 2.0})); // whole tone
+        scalePresets.push_back(scaleFromRatios(
+            {1.122462, 1.259921, 1.33484, 1.498307, 1.681793, 1.887749, 2.0})); // major
+        scalePresets.push_back(
+            scaleFromRatios({1.125, 1.25, 1.333333, 1.5, 1.666667, 1.875, 2.0})); // major 5limit
+        scalePresets.push_back(scaleFromRatios(
+            {1.122462, 1.189207, 1.33484, 1.498307, 1.587401, 1.781797, 2.0})); // minor
+        scalePresets.push_back(
+            scaleFromRatios({1.125, 1.2, 1.333333, 1.5, 1.6, 1.777778, 2.0})); // minor 5limit
+        scalePresets.push_back(scaleFromRatios({1., 1.122462, 1.189207, 1.33484, 1.414214, 1.587401,
+                                                1.681793, 1.887749, 2.0})); // octatonic
+        scalePresets.push_back(
+            scaleFromRatios({1.125, 1.25, 1.375, 1.5, 1.625, 1.75, 1.875, 2.0})); // overtone
+        scalePresets.push_back(Tunings::evenTemperament12NoteScale());            // chromatic
+        scalePresets.push_back(scaleFromRatios({1.088182, 1.18414, 1.288561, 1.402189, 1.525837,
+                                                1.660388, 1.806806, 1.966134, 2.139512, 2.328178,
+                                                2.533484, 2.756892, 3.0}));   // bohlen-pierce
+        scalePresets.push_back(Tunings::evenDivisionOfCentsByM(1200.0f, 24)); // quarter-tone
         auto scale = Tunings::readSCLFile(R"(C:\develop\xenos\scala_scales\major_chord_ji.scl)");
         scalePresets.push_back(scale);
         jassert(scalePresets.size() == SCALE_PRESETS + 1);
-        /*
-        Scale({1., 1.166667, 1.333333, 1.4, 1.5, 1.75}, 2), // blues (7-limit)
-        Scale({1., 1.122462, 1.259921, 1.414214, 1.587401, 1.781797},
-              2), // whole-tone
-        Scale({1., 1.122462, 1.259921, 1.33484, 1.498307, 1.681793, 1.887749},
-              2), // major
-        Scale({1., 1.125, 1.25, 1.333333, 1.5, 1.666667, 1.875},
-              2), // major (5-limit)
-        Scale({1., 1.122462, 1.189207, 1.33484, 1.498307, 1.587401, 1.781797},
-              2), // minor
-        Scale({1., 1.125, 1.2, 1.333333, 1.5, 1.6, 1.777778},
-              2), // minor (5-limit)
-        Scale({1., 1.122462, 1.189207, 1.33484, 1.414214, 1.587401, 1.681793,
-               1.887749},
-              2), // octatonic
-        Scale({1., 1.125, 1.25, 1.375, 1.5, 1.625, 1.75, 1.875}, 2), // overtone
-        Scale({1., 1.059463, 1.122462, 1.189207, 1.259921, 1.33484, 1.414214,
-               1.498307, 1.587401, 1.681793, 1.781797, 1.887749},
-              2), // chromatic
-        Scale({1., 1.088182, 1.18414, 1.288561, 1.402189, 1.525837, 1.660388,
-               1.806806, 1.966134, 2.139512, 2.328178, 2.533484, 2.756892},
-              3), // bohlen–pierce
-        Scale({1.,       1.029302, 1.059463, 1.090508, 1.122462, 1.155353,
-               1.189207, 1.224054, 1.259921, 1.29684,  1.33484,  1.373954,
-               1.414214, 1.455653, 1.498307, 1.542211, 1.587401, 1.633915,
-               1.681793, 1.731073, 1.781797, 1.834008, 1.887749, 1.943064},
-              2), // quarter-tone
-        */
     }
     double quantizeHz(double sourceHz)
     {
@@ -533,7 +525,7 @@ class XenosSynthAudioSource : public juce::AudioSource
     Tunings::KeyboardMapping sharedKBM;
     XenosSynthAudioSource(juce::MidiKeyboardState &keyState) : keyboardState(keyState)
     {
-        sharedKBM = Tunings::startScaleOnAndTuneNoteTo(0, 69, 440.0);
+        sharedKBM = Tunings::startScaleOnAndTuneNoteTo(69, 69, 440.0);
         for (auto i = 0; i < NUM_VOICES; ++i)
             xenosSynth.addVoice(
                 new XenosVoice(&xenosSynth.noteCounter, &srProvider, &sharedquantizer));
@@ -688,9 +680,9 @@ class XenosSynthAudioSource : public juce::AudioSource
     }
 
     void setMidiBuffer(juce::MidiBuffer &mB) { midiBuffer = mB; }
-    bool loadScala(juce::File fn) 
-    { 
-        auto err = sharedquantizer.loadScalaFile(fn,sharedKBM);
+    bool loadScala(juce::File fn)
+    {
+        auto err = sharedquantizer.loadScalaFile(fn, sharedKBM);
         return err.isEmpty();
     }
     bool loadScl(juce::StringArray &s, bool load)
