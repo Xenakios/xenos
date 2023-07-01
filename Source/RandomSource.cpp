@@ -18,21 +18,23 @@ double RandomSource::uniform(double a) { return uniformDist(generator) * a; }
 
 double RandomSource::normal(double a, double b)
 {
+    // some std::normal_distribution implementations don't accept equal or less than zero
+    // second parameter, so keep it above.
+    if (b <= 0.00001)
+        b = 0.00001;
     normalDist.param(std::normal_distribution<double>::param_type(a, b));
     return normalDist(generator);
 }
 
 double RandomSource::poisson(double a)
 {
-    if (a < 0.0) a *= -1;
+    if (a < 0.0)
+        a *= -1;
     poissonDist.param(std::poisson_distribution<int>::param_type(a));
     return poissonDist(generator);
 }
 
-double RandomSource::cauchy(double z, double a)
-{
-    return (a * tan((z - 0.5) * M_PI));
-}
+double RandomSource::cauchy(double z, double a) { return (a * tan((z - 0.5) * M_PI)); }
 
 double RandomSource::logist(double z, double a, double b)
 {
@@ -41,10 +43,7 @@ double RandomSource::logist(double z, double a, double b)
     return (-(log((1 - z) / z) + b) / a);
 }
 
-double RandomSource::hyperbcos(double z, double a)
-{
-    return (a * log(tan(z * M_PI / 2.0)));
-}
+double RandomSource::hyperbcos(double z, double a) { return (a * log(tan(z * M_PI / 2.0))); }
 
 double RandomSource::arcsine(double z, double a)
 {
@@ -58,22 +57,17 @@ double RandomSource::exponential(double z, double a)
     return (-(log(1 - z)) / a);
 }
 
-double RandomSource::triangle(double z, double a)
-{
-    return (a * (1 - sqrt(1 - z)));
-}
+double RandomSource::triangle(double z, double a) { return (a * (1 - sqrt(1 - z))); }
 
-double RandomSource::sinus(double z, double a, double b)
-{
-    return (a * sin(z * (2 * M_PI) * b));
-}
+double RandomSource::sinus(double z, double a, double b) { return (a * sin(z * (2 * M_PI) * b)); }
 
 double RandomSource::operator()()
 {
     double rand = uniformDist(generator);
     int sign = (rand < 0.5) * 2 - 1;
     double v;
-    switch (mode) {
+    switch (mode)
+    {
     case 0:
         v = uniform(alpha);
         v *= sign;

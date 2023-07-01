@@ -31,6 +31,7 @@
 // and do a binary search
 inline double findClosestFrequency(const Tunings::Tuning &tuning, double sourceFrequency)
 {
+    
     double lastdiff = 10000000.0;
     double found = 0.0;
     for (int i = 0; i < 512; ++i)
@@ -53,24 +54,26 @@ struct Quantizer2
         try
         {
             auto scale = Tunings::readSCLFile(
-                R"(C:\Users\teemu\Documents\Rack2\plugins\Xenakios\res\scala_scales\pure fifths.scl)");
+                R"(C:\develop\xenos\scala_scales\equally tempered whole tone.scl)");
             auto kbm = Tunings::startScaleOnAndTuneNoteTo(0, 69, 440.0);
             tuning = Tunings::Tuning(scale, kbm);
+            tuningValid = true;
         }
         catch (std::exception &ex)
         {
             std::cout << ex.what() << "\n";
         }
     }
-    void update(double sourceHz)
+    double quantizeHz(double sourceHz)
     {
+        if (!tuningValid)
+            return sourceHz;
         double hz = findClosestFrequency(tuning, sourceHz);
         if (hz > 0.0)
-            curHz = hz;
-        else
-            curHz = sourceHz;
+            return hz;
+        return sourceHz;
     }
-    double curHz = 0.0;
+    bool tuningValid = false;
     Tunings::Tuning tuning;
 };
 
@@ -83,7 +86,6 @@ struct XenosCore
         ampWalk.initialize(MAX_POINTS);
         ampWalk.setParams(1.0);
         reset();
-        quan2.curHz = 440.0;
     }
 
     void reset()
@@ -112,13 +114,13 @@ struct XenosCore
         quantizer.setRange(max, min);
     }
     double curHz = 440.0;
+    double curQuantizedHz = 440.0;
     double operator()()
     {
         if (index < 0.0)
             index = 0.0;
         int intdex = floor(index);
-        double quanhz = quan2.curHz;
-        double quanfactor = curHz / quanhz;
+        double quanfactor = curHz / curQuantizedHz;
         // double segmentSamps = pitchWalk(intdex, quantizer.getFactor()) * bend;
         double segmentSamps = pitchWalk(intdex, quanfactor) * bend;
         double increment = 1 / segmentSamps;
@@ -139,7 +141,7 @@ struct XenosCore
             if (nPoints_ > 0)
                 setNPoints();
             curHz = sampleRate / pitchWalk.getSumPeriod();
-            quan2.update(curHz);
+            curQuantizedHz = quan2->quantizeHz(curHz);
         }
         return ampWalk(index, nPoints);
     }
@@ -159,9 +161,8 @@ struct XenosCore
 
     void setPitchCenter(float pC)
     {
-        pitchCenter = pC;
-        pitchCenter = quan2.tuning.logScaledFrequencyForMidiNote(pC) * 12.0;
-        curHz = quan2.tuning.frequencyForMidiNote(pC);
+        pitchCenter = quan2->tuning.logScaledFrequencyForMidiNote(pC) * 12.0;
+        curHz = quan2->tuning.frequencyForMidiNote(pC);
         calcMetaParams();
     }
 
@@ -195,7 +196,7 @@ struct XenosCore
     RandomWalk pitchWalk, ampWalk;
     RandomSource pitchSource, ampSource;
     Quantizer quantizer;
-    Quantizer2 quan2;
+    Quantizer2 *quan2 = nullptr;
     std::default_random_engine generator;
     std::uniform_real_distribution<double> uniform{-1.0, 1.0};
 };
@@ -283,8 +284,10 @@ struct XenosSound : public juce::SynthesiserSound
 struct XenosVoice : public juce::SynthesiserVoice
 {
     SRProvider *srprovider = nullptr;
-    XenosVoice(int *notecounter_, SRProvider *sp) : srprovider(sp), noteCounter(notecounter_)
+    XenosVoice(int *notecounter_, SRProvider *sp, Quantizer2 *qnt)
+        : srprovider(sp), noteCounter(notecounter_)
     {
+        xenos.quan2 = qnt;
         lfo1 = std::make_unique<LFOType>(sp);
     }
 
@@ -427,10 +430,12 @@ class XenosSynthAudioSource : public juce::AudioSource
 {
   public:
     SRProvider srProvider;
+    Quantizer2 sharedquantizer;
     XenosSynthAudioSource(juce::MidiKeyboardState &keyState) : keyboardState(keyState)
     {
         for (auto i = 0; i < NUM_VOICES; ++i)
-            xenosSynth.addVoice(new XenosVoice(&xenosSynth.noteCounter, &srProvider));
+            xenosSynth.addVoice(
+                new XenosVoice(&xenosSynth.noteCounter, &srProvider, &sharedquantizer));
 
         xenosSynth.addSound(new XenosSound());
     }
