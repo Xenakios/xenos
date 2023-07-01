@@ -101,7 +101,7 @@ private:
 };
 
 class XenosAudioProcessorEditor
-    : public juce::AudioProcessorEditor
+    : public juce::AudioProcessorEditor, public juce::Timer
     , private juce::Button::Listener {
 public:
     typedef juce::AudioProcessorValueTreeState::SliderAttachment
@@ -116,6 +116,8 @@ public:
     //==============================================================================
     void paint(juce::Graphics&) override;
     void resized() override;
+
+    void timerCallback() override;
 
     //==============================================================================
     void formatHeaderLabel(juce::Label& label, std::string t);
@@ -133,7 +135,7 @@ private:
     XenosAudioProcessor& audioProcessor;
     juce::AudioProcessorValueTreeState& valueTreeState;
     XenosLookAndFeel xenosLookAndFeel;
-
+    juce::Label cpuLoadLabel;
     ParamSlider pitchWidth;
     ParamSlider pitchBarrier;
     ParamSlider pitchStep;

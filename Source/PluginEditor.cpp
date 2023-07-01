@@ -23,8 +23,10 @@ XenosAudioProcessorEditor::XenosAudioProcessorEditor(
     , keyboardComponent(p.keyboardState,
                         juce::MidiKeyboardComponent::horizontalKeyboard)
 {
+    startTimer(100);
     setSize(700, 560);
-
+    addAndMakeVisible(cpuLoadLabel);
+    cpuLoadLabel.setBounds(0,0,100,20);
     red = juce::Colours::red;
     green = juce::Colours::lawngreen;
     blue = juce::Colours::cornflowerblue;
@@ -129,6 +131,12 @@ void XenosAudioProcessorEditor::mouseDown(const juce::MouseEvent& ev)
     
 }
 
+void XenosAudioProcessorEditor::timerCallback()
+{
+    juce::String loadTxt(audioProcessor.loadMeasurer.getLoadAsPercentage(),1);
+    cpuLoadLabel.setText(loadTxt+"% CPU",juce::dontSendNotification);
+}
+
 //==============================================================================
 void XenosAudioProcessorEditor::paint(juce::Graphics& g)
 {
@@ -156,6 +164,9 @@ void XenosAudioProcessorEditor::paint(juce::Graphics& g)
     g.drawText(
         "Copyright " + copyr + " 2022 Raphael Radna. All rights reserved.",
         margin, h - margin, w - margin * 2, margin, juce::Justification::right);
+    
+    
+    
 }
 
 void XenosAudioProcessorEditor::resized()

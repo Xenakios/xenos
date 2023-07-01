@@ -299,6 +299,7 @@ void XenosAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     outputFilter.setType(juce::dsp::StateVariableTPTFilterType::highpass);
     outputFilter.setCutoffFrequency(16.0f);
     outputFilter.setResonance(1.0/std::sqrt(2.0f));
+    loadMeasurer.reset(sampleRate,samplesPerBlock);
 }
 
 void XenosAudioProcessor::releaseResources()
@@ -349,6 +350,7 @@ inline void update_dsp_if_needed(float& previousvalue, float newvalue,F&& f)
 void XenosAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                                        juce::MidiBuffer& midiMessages)
 {
+    juce::AudioProcessLoadMeasurer::ScopedTimer bt(loadMeasurer,buffer.getNumSamples());
     xenosAudioSource.setMidiBuffer(midiMessages);
     juce::AudioSourceChannelInfo channelInfo(buffer);
     xenosAudioSource.getNextAudioBlock(channelInfo);

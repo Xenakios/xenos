@@ -54,7 +54,7 @@ struct Quantizer2
         try
         {
             auto scale = Tunings::readSCLFile(
-                R"(C:\develop\xenos\scala_scales\equally tempered whole tone.scl)");
+                R"(C:\develop\xenos\scala_scales\major_chord_ji.scl)");
             auto kbm = Tunings::startScaleOnAndTuneNoteTo(0, 69, 440.0);
             tuning = Tunings::Tuning(scale, kbm);
             tuningValid = true;

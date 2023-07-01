@@ -67,6 +67,7 @@ public:
 
     XenosSynthAudioSource xenosAudioSource;
     const int numActualVoicePanModes = 6;
+    juce::AudioProcessLoadMeasurer loadMeasurer;
 private:
     //==============================================================================
     juce::AudioProcessorValueTreeState params;
@@ -104,5 +105,6 @@ private:
 
     juce::dsp::StateVariableTPTFilter<float> outputFilter;
     float previousOutputFilterFrequency = 0.0f;
+    
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(XenosAudioProcessor)
 };
