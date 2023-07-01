@@ -362,7 +362,7 @@ void XenosAudioProcessorEditor::loadCustomScale()
         juce::StringArray scaleData;
         f.readLines(scaleData);
         juce::String scaleName = f.getFileNameWithoutExtension();
-
+        /*
         if (audioProcessor.xenosAudioSource.loadScl(scaleData, true)) {
             scale.changeItemText(customScaleMenuIndex, scaleName);
             scale.setItemEnabled(customScaleMenuIndex, true);
@@ -373,5 +373,20 @@ void XenosAudioProcessorEditor::loadCustomScale()
 
             audioProcessor.updateHostDisplay();
         }
+        */
+        // ok, shouldn't do this but there previously was no synchronization anyway
+        audioProcessor.getCallbackLock().enter();
+        bool success = audioProcessor.xenosAudioSource.loadScala(f);
+        audioProcessor.getCallbackLock().exit();
+        if (success) {
+                scale.changeItemText(customScaleMenuIndex, scaleName);
+                scale.setItemEnabled(customScaleMenuIndex, true);
+                scale.setSelectedId(customScaleMenuIndex);
+
+                audioProcessor.customScaleName = scaleName;
+                //audioProcessor.customScaleData = scaleData;
+
+                audioProcessor.updateHostDisplay();
+            }
     }
 }

@@ -52,6 +52,7 @@ struct Quantizer2
 {
     Quantizer2()
     {
+        /*
         try
         {
             auto scale =
@@ -63,6 +64,7 @@ struct Quantizer2
         {
             std::cout << ex.what() << "\n";
         }
+        */
         initScalePresets();
     }
     static Tunings::Scale scaleFromRatios(std::vector<double> ratios)
@@ -79,7 +81,9 @@ struct Quantizer2
             for (auto &ratio : ratios)
             {
                 double cents = 1200.0 * std::log2(ratio);
-                sprintf_s(buf,"%f",cents);
+                // because of how the Scala format works we need floating point cents
+                // always with the decimal point, so can't stream the float directly
+                sprintf_s(buf, "%f", cents);
                 ss << buf << "\n";
             }
             auto str = ss.str();
@@ -99,6 +103,22 @@ struct Quantizer2
         // auto kbm = Tunings::startScaleOnAndTuneNoteTo(0, 69, 440.0);
         tuning = Tunings::Tuning(scale, kbm);
     }
+    juce::String loadScalaFile(juce::File fn, Tunings::KeyboardMapping &kbm)
+    {
+        auto str = fn.getFullPathName().toStdString();
+        try
+        {
+            auto scale = Tunings::readSCLFile(str);
+            scalePresets.back() = scale;
+            tuning = Tunings::Tuning(scale, kbm);
+            return "";
+        }
+        catch(std::exception& ex)
+        {
+            return ex.what();
+        }
+        return "";
+    }
     void initScalePresets()
     {
         scalePresets.clear();
@@ -106,13 +126,13 @@ struct Quantizer2
             scaleFromRatios({1.122462, 1.259921, 1.498307, 1.681793, 2.0})); // pentatonic
         scalePresets.push_back(
             scaleFromRatios({1.125, 1.265625, 1.5, 1.6875, 2.0})); // pentatonic (pythagorean)
-        for (int i = 0; i < 11; ++i)
+        for (int i = 0; i < 12; ++i)
             scalePresets.push_back(
                 scaleFromRatios({1.189207, 1.33484, 1.414214, 1.498307, 1.781797, 2.0})); // blues
         // scalePresets.push_back(Tunings::evenTemperament12NoteScale()); // custom placeholder
         auto scale = Tunings::readSCLFile(R"(C:\develop\xenos\scala_scales\major_chord_ji.scl)");
         scalePresets.push_back(scale);
-        jassert(scalePresets.size() == SCALE_PRESETS);
+        jassert(scalePresets.size() == SCALE_PRESETS + 1);
         /*
         Scale({1., 1.166667, 1.333333, 1.4, 1.5, 1.75}, 2), // blues (7-limit)
         Scale({1., 1.122462, 1.259921, 1.414214, 1.587401, 1.781797},
@@ -151,7 +171,7 @@ struct Quantizer2
             return hz;
         return sourceHz;
     }
-    bool active = true;
+    bool active = false;
     Tunings::Tuning tuning;
 };
 
@@ -513,7 +533,7 @@ class XenosSynthAudioSource : public juce::AudioSource
     Tunings::KeyboardMapping sharedKBM;
     XenosSynthAudioSource(juce::MidiKeyboardState &keyState) : keyboardState(keyState)
     {
-        sharedKBM = Tunings::startScaleOnAndTuneNoteTo(0,69,440.0);
+        sharedKBM = Tunings::startScaleOnAndTuneNoteTo(0, 69, 440.0);
         for (auto i = 0; i < NUM_VOICES; ++i)
             xenosSynth.addVoice(
                 new XenosVoice(&xenosSynth.noteCounter, &srProvider, &sharedquantizer));
@@ -668,7 +688,11 @@ class XenosSynthAudioSource : public juce::AudioSource
     }
 
     void setMidiBuffer(juce::MidiBuffer &mB) { midiBuffer = mB; }
-
+    bool loadScala(juce::File fn) 
+    { 
+        auto err = sharedquantizer.loadScalaFile(fn,sharedKBM);
+        return err.isEmpty();
+    }
     bool loadScl(juce::StringArray &s, bool load)
     {
         bool result = false;
