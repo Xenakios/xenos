@@ -58,9 +58,26 @@ inline void test_sst_tuning()
     }
 }
 
+class ShadowTest
+{
+public:
+    ShadowTest(int foo)
+    {
+        foo = foo;
+    }
+    int foo = 0;
+};
+
+void test_shadowing()
+{
+    ShadowTest s(42);
+    std::cout << s.foo << "\n";
+}
+
 int main()
 {
     //test_sst_tuning();
-    test_xenoscore();
+    //test_xenoscore();
+    test_shadowing();
     return 0;
 }

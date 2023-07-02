@@ -100,6 +100,46 @@ private:
     juce::Colour backgroundColor, outlineColor, sliderColor;
 };
 
+class PitchVisualizer : public juce::Component, juce::Timer
+{
+public:
+    PitchVisualizer(XenosSynth& syn, Quantizer2& q) : synth(syn), quan(q)
+    {
+        startTimerHz(30);
+    }
+    void timerCallback() override
+    {
+        repaint();
+    }
+    void paint(juce::Graphics& g) override
+    {
+        g.setColour(juce::Colours::white);
+        double minfreq = Tunings::MIDI_0_FREQ * 4;
+        for (int i=0;i<synth.getNumVoices();++i)
+        {
+            auto* v = dynamic_cast<XenosVoice*>(synth.getVoice(i));
+            if (v->isVoiceActive())
+            {
+                double hz = v->xenos.curQuantizedHz;
+                double pitch = 12.0 * std::log2(hz/minfreq);
+                double xcor = juce::jmap<double>(pitch,0.0,100.0,0.0,getWidth());
+                g.drawLine(xcor,0,xcor,getHeight()/2);
+            }
+        }
+        for (int i=0;i<128;++i)
+        {
+            double hz = quan.tuning.frequencyForMidiNote(i);
+            double pitch = 12.0 * std::log2(hz/minfreq);
+            double xcor = juce::jmap<double>(pitch,0.0,100.0,0.0,getWidth());
+            g.drawLine(xcor,getHeight()/2,xcor,getHeight());
+        }
+        
+    }
+private:
+    XenosSynth& synth;
+    Quantizer2& quan;
+};
+
 class XenosAudioProcessorEditor
     : public juce::AudioProcessorEditor, public juce::Timer
     , private juce::Button::Listener {
@@ -166,6 +206,7 @@ private:
     ParamSlider mainhpfilter;
 
     juce::MidiKeyboardComponent keyboardComponent;
+    PitchVisualizer pitchVisualizer;
 
     juce::Label pitchLabel, amplitudeLabel, envelopeLabel;
 

@@ -409,12 +409,17 @@ struct XenosVoice : public juce::SynthesiserVoice
         adsr.noteOn();
         xenos.reset();
         lfo_updatecounter = 0;
+        
     }
 
     void stopNote(float /*velocity*/, bool allowTailOff) override
     {
         if (adsr.isActive())
+        {
             adsr.noteOff();
+            //clearCurrentNote();
+        }
+            
     }
 
     void pitchWheelMoved(int newPitchWheelValue) override { xenos.setBend(newPitchWheelValue); }
@@ -700,9 +705,9 @@ class XenosSynthAudioSource : public juce::AudioSource
         }
         return result;
     }
-
+    XenosSynth xenosSynth;
   private:
     juce::MidiKeyboardState &keyboardState;
     juce::MidiBuffer midiBuffer;
-    XenosSynth xenosSynth;
+    
 };

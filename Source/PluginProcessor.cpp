@@ -393,7 +393,8 @@ void XenosAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
                            customScaleData.joinIntoString("\n"));
     xmlScale->setAttribute(juce::Identifier(juce::String("CUSTOM_SCALE_NAME")),
                            customScaleName);
-
+    xmlScale->setAttribute(juce::Identifier(juce::String("CUSTOM_SCALE_DATA2")),
+                           customScaleText);
     copyXmlToBinary(xmlParent, destData);
 }
 
