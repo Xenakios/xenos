@@ -187,7 +187,8 @@ struct XenosCore
         ampWalk.setParams(1.0);
         reset();
     }
-
+    int tuningUpdateRate = 256;
+    int tuningUpdateCounter = 0;
     void reset()
     {
         for (unsigned i = 0; i < MAX_POINTS; ++i)
@@ -218,6 +219,15 @@ struct XenosCore
     double curQuantizedHz = 440.0;
     double operator()()
     {
+        if (tuningUpdateCounter == 0)
+        {
+            if (quan2->use_oddsound && quan2->mts_client && MTS_HasMaster(quan2->mts_client))
+                setPitchCenter(pitchCenterAsKey);
+        }
+        ++tuningUpdateCounter;
+        if (tuningUpdateCounter == tuningUpdateRate)
+            tuningUpdateCounter = 0;
+
         if (index < 0.0)
             index = 0.0;
         int intdex = floor(index);
@@ -259,9 +269,10 @@ struct XenosCore
         calcMetaParams();
         nPoints_ = 0;
     }
-
+    double pitchCenterAsKey = 0.0;
     void setPitchCenter(float pC)
     {
+        pitchCenterAsKey = pC;
         if (quan2->use_oddsound && quan2->mts_client && MTS_HasMaster(quan2->mts_client))
         {
             double diff = MTS_RetuningInSemitones(quan2->mts_client, pC, -1);
