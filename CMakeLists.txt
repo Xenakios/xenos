@@ -56,6 +56,7 @@ juce_add_plugin(${APP_NAME}
 include_directories(
     libs/sst-basic-blocks/include
     libs/tuning-library/include
+    libs/MTS-ESP/Client
     )
 
 target_sources(${APP_NAME} PRIVATE
@@ -66,6 +67,7 @@ target_sources(${APP_NAME} PRIVATE
     Source/RandomWalk.cpp
     Source/Scale.cpp
     Source/Utility.cpp
+    libs/MTS-ESP/Client/libMTSClient.cpp
 )
 
 juce_add_binary_data(GuiAppData

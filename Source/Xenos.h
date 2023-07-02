@@ -20,6 +20,7 @@
 #include "Utility.h"
 #include "sst/basic-blocks/dsp/PanLaws.h"
 #include "sst/basic-blocks/modulators/SimpleLFO.h"
+#include "libMTSClient.h"
 
 #define MAX_POINTS (128)
 #define NUM_VOICES (128)
@@ -30,14 +31,21 @@
 // obviously need a better solution for this...
 // i guess we could precalculate all the possible frequencies into a sorted vector/array
 // and do a binary search
-inline double findClosestFrequency(const Tunings::Tuning &tuning, double sourceFrequency)
+inline double findClosestFrequency(const Tunings::Tuning &tuning, double sourceFrequency,
+                                   MTSClient *mts)
 {
-
     double lastdiff = 10000000.0;
     double found = 0.0;
-    for (int i = 0; i < 512; ++i)
+    int notesToScan = 256;
+    if (mts)
+        notesToScan = 128;
+    for (int i = 0; i < notesToScan; ++i)
     {
-        double hz = tuning.frequencyForMidiNote(i);
+        double hz = 0.0;
+        if (!mts)
+            hz = tuning.frequencyForMidiNote(i);
+        else
+            hz = MTS_NoteToFrequency(mts, i, -1);
         double diff = std::abs(hz - sourceFrequency);
         if (diff < lastdiff)
         {
@@ -45,28 +53,27 @@ inline double findClosestFrequency(const Tunings::Tuning &tuning, double sourceF
             found = hz;
         }
     }
+
     return found;
 }
 
 struct Quantizer2
 {
+    MTSClient *mts_client = nullptr;
     Quantizer2()
     {
-        /*
-        try
-        {
-            auto scale =
-                Tunings::readSCLFile(R"(C:\develop\xenos\scala_scales\major_chord_ji.scl)");
-            auto kbm = Tunings::startScaleOnAndTuneNoteTo(0, 69, 440.0);
-            tuning = Tunings::Tuning(scale, kbm);
-        }
-        catch (std::exception &ex)
-        {
-            std::cout << ex.what() << "\n";
-        }
-        */
+        mts_client = MTS_RegisterClient();
         initScalePresets();
     }
+    ~Quantizer2() { MTS_DeregisterClient(mts_client); }
+
+    double getHzForMidiNote(int note)
+    {
+        if (use_oddsound && mts_client && MTS_HasMaster(mts_client))
+            return MTS_NoteToFrequency(mts_client, note, -1);
+        return tuning.frequencyForMidiNote(note);
+    }
+    bool use_oddsound = true;
     static Tunings::Scale scaleFromRatios(std::vector<double> ratios)
     {
         try
@@ -158,7 +165,10 @@ struct Quantizer2
     {
         if (!active)
             return sourceHz;
-        double hz = findClosestFrequency(tuning, sourceHz);
+        MTSClient *temp = nullptr;
+        if (use_oddsound && mts_client && MTS_HasMaster(mts_client))
+            temp = mts_client;
+        double hz = findClosestFrequency(tuning, sourceHz, temp);
         if (hz > 0.0)
             return hz;
         return sourceHz;
@@ -252,8 +262,16 @@ struct XenosCore
 
     void setPitchCenter(float pC)
     {
-        pitchCenter = quan2->tuning.logScaledFrequencyForMidiNote(pC) * 12.0;
-        curHz = quan2->tuning.frequencyForMidiNote(pC);
+        if (quan2->use_oddsound && quan2->mts_client && MTS_HasMaster(quan2->mts_client))
+        {
+            double diff = MTS_RetuningInSemitones(quan2->mts_client, pC, -1);
+            pitchCenter = pC + diff;
+        }
+        else
+        {
+            pitchCenter = quan2->tuning.logScaledFrequencyForMidiNote(pC) * 12.0;
+        }
+        curHz = quan2->getHzForMidiNote(pC);
         calcMetaParams();
     }
 
@@ -409,7 +427,6 @@ struct XenosVoice : public juce::SynthesiserVoice
         adsr.noteOn();
         xenos.reset();
         lfo_updatecounter = 0;
-        
     }
 
     void stopNote(float /*velocity*/, bool allowTailOff) override
@@ -417,9 +434,8 @@ struct XenosVoice : public juce::SynthesiserVoice
         if (adsr.isActive())
         {
             adsr.noteOff();
-            //clearCurrentNote();
+            // clearCurrentNote();
         }
-            
     }
 
     void pitchWheelMoved(int newPitchWheelValue) override { xenos.setBend(newPitchWheelValue); }
@@ -706,8 +722,8 @@ class XenosSynthAudioSource : public juce::AudioSource
         return result;
     }
     XenosSynth xenosSynth;
+
   private:
     juce::MidiKeyboardState &keyboardState;
     juce::MidiBuffer midiBuffer;
-    
 };

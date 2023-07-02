@@ -113,14 +113,18 @@ public:
     }
     void paint(juce::Graphics& g) override
     {
-        g.setColour(juce::Colours::white);
+        if (quan.mts_client && MTS_HasMaster(quan.mts_client))
+            g.setColour(juce::Colours::cyan);
+        else g.setColour(juce::Colours::white);
         double minfreq = Tunings::MIDI_0_FREQ * 4;
         for (int i=0;i<synth.getNumVoices();++i)
         {
             auto* v = dynamic_cast<XenosVoice*>(synth.getVoice(i));
             if (v->isVoiceActive())
             {
-                double hz = v->xenos.curQuantizedHz;
+                // technically, reading the voice variable here in the GUI thread is wrong because it's not atomic.
+                // but it will probably work ok.
+                double hz = v->xenos.curQuantizedHz; 
                 double pitch = 12.0 * std::log2(hz/minfreq);
                 double xcor = juce::jmap<double>(pitch,0.0,100.0,0.0,getWidth());
                 g.drawLine(xcor,0,xcor,getHeight()/2);
@@ -128,7 +132,7 @@ public:
         }
         for (int i=0;i<128;++i)
         {
-            double hz = quan.tuning.frequencyForMidiNote(i);
+            double hz = quan.getHzForMidiNote(i);
             double pitch = 12.0 * std::log2(hz/minfreq);
             double xcor = juce::jmap<double>(pitch,0.0,100.0,0.0,getWidth());
             g.drawLine(xcor,getHeight()/2,xcor,getHeight());
