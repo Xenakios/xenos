@@ -6,9 +6,13 @@
 
 #define SCALE_PRESETS (14)
 
-// obviously need a better solution for this...
-// i guess we could precalculate all the possible frequencies into a sorted vector/array
-// and do a binary search
+// Obviously this full looping over the frequency tables isn't ideal...
+// I guess we could fetch all the possible frequencies into a sorted vector/array
+// and do a binary search.
+// That has the potential problem the frequency tables might intentionally be non-ordered and
+// we should ideally respect that.
+// Another possibility would be to precalculate the lowest and highest index we need from
+// the frequency table based on the synthesis pitch center and width parameters.
 inline double findClosestFrequency(const Tunings::Tuning &tuning, double sourceFrequency,
                                    MTSClient *mts)
 {
@@ -31,7 +35,8 @@ inline double findClosestFrequency(const Tunings::Tuning &tuning, double sourceF
             found = hz;
         }
     }
-
+    if (found == 0.0)
+        return sourceFrequency;
     return found;
 }
 
