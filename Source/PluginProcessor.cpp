@@ -351,6 +351,7 @@ void XenosAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                                        juce::MidiBuffer& midiMessages)
 {
     juce::AudioProcessLoadMeasurer::ScopedTimer bt(loadMeasurer,buffer.getNumSamples());
+    
     xenosAudioSource.setMidiBuffer(midiMessages);
     juce::AudioSourceChannelInfo channelInfo(buffer);
     xenosAudioSource.getNextAudioBlock(channelInfo);
@@ -379,7 +380,7 @@ void XenosAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
     // You should use this method to store your parameters in the memory block.
     // You could do that either as raw data, or use the XML or ValueTree classes
     // as intermediaries to make it easy to save and load complex data.
-
+    
     auto state = params.copyState();
 
     juce::XmlElement xmlParent("parent");

@@ -50,7 +50,7 @@ struct XenosCore
 
     void calcMetaParams()
     {
-        calcPeriodRange(pitchCenter, pitchWidth);
+        calcPeriodRange(pitchCenter, pitchWidthKeys);
         pitchWalk.setParams(periodRange, nPoints);
         quantizer.calcSteps();
     }
@@ -136,7 +136,7 @@ struct XenosCore
 
     void setPitchWidth(float pW)
     {
-        pitchWidth = pW;
+        pitchWidthKeys = pW;
         calcMetaParams();
     }
 
@@ -154,7 +154,7 @@ struct XenosCore
 
     double sampleRate = 44100.0;
     float pitchCenter = 48.0f; // midi pitch
-    float pitchWidth = 1.0f;   // semitones
+    float pitchWidthKeys = 1.0f;   // keys
     double periodRange[2];
     double bend = 1.0;
     int nPoints = 12;
@@ -453,7 +453,7 @@ class XenosSynthAudioSource : public juce::AudioSource
             }
             if (parameterID == "pitchWidth")
             {
-                xenos.pitchWidth = newValue;
+                xenos.pitchWidthKeys = newValue;
                 if (voice->isVoiceActive())
                     xenos.calcMetaParams();
             }
