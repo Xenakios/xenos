@@ -19,10 +19,16 @@
 
 //==============================================================================
 
-enum sliderStyle { vertical, horizontal, rotary };
+enum sliderStyle
+{
+    vertical,
+    horizontal,
+    rotary
+};
 
-class XenosLookAndFeel : public juce::LookAndFeel_V4 {
-public:
+class XenosLookAndFeel : public juce::LookAndFeel_V4
+{
+  public:
     XenosLookAndFeel()
     {
         backgroundColor = findColour(juce::Slider::trackColourId);
@@ -32,18 +38,16 @@ public:
         setColour(juce::Slider::backgroundColourId, backgroundColor);
         setColour(juce::Slider::thumbColourId, juce::Colours::red);
         setColour(juce::Slider::textBoxBackgroundColourId, backgroundColor);
-        setColour(juce::Slider::textBoxHighlightColourId,
-                  outlineColor.darker(1.0f));
+        setColour(juce::Slider::textBoxHighlightColourId, outlineColor.darker(1.0f));
     }
 
-    void drawButtonBackground(juce::Graphics& g, juce::Button& b,
-                              const juce::Colour& backgroundColour,
+    void drawButtonBackground(juce::Graphics &g, juce::Button &b,
+                              const juce::Colour &backgroundColour,
                               bool shouldDrawButtonAsHighlighted,
                               bool shouldDrawButtonAsDown) override
     {
-        juce::Colour buttonColor = (!shouldDrawButtonAsHighlighted)
-                                       ? backgroundColor
-                                       : outlineColor.darker(1.0f);
+        juce::Colour buttonColor =
+            (!shouldDrawButtonAsHighlighted) ? backgroundColor : outlineColor.darker(1.0f);
         g.setColour(buttonColor);
         auto w = b.getWidth();
         auto h = b.getHeight();
@@ -52,9 +56,8 @@ public:
         g.drawRect(0, 0, w, h, 1);
     }
 
-    void drawComboBox(juce::Graphics& g, int width, int height,
-                      bool isButtonDown, int buttonX, int buttonY, int buttonW,
-                      int buttonH, juce::ComboBox& c) override
+    void drawComboBox(juce::Graphics &g, int width, int height, bool isButtonDown, int buttonX,
+                      int buttonY, int buttonW, int buttonH, juce::ComboBox &c) override
     {
         g.setColour(backgroundColor);
         g.fillRect(0, 0, width, height);
@@ -73,21 +76,16 @@ public:
         g.fillPath(p);
     }
 
-    void positionComboBoxText(juce::ComboBox& c,
-                              juce::Label& labelToPosition) override
+    void positionComboBoxText(juce::ComboBox &c, juce::Label &labelToPosition) override
     {
         labelToPosition.setSize(c.getWidth() - 25, c.getHeight());
     }
 
-    juce::Font getLabelFont(juce::Label&) override { return juce::Font(12.0f); }
+    juce::Font getLabelFont(juce::Label &) override { return juce::Font(12.0f); }
 
-    juce::Font getComboBoxFont(juce::ComboBox&) override
-    {
-        return juce::Font(12.0f);
-    }
+    juce::Font getComboBoxFont(juce::ComboBox &) override { return juce::Font(12.0f); }
 
-    void drawPopupMenuBackground(juce::Graphics& g, int width,
-                                 int height) override
+    void drawPopupMenuBackground(juce::Graphics &g, int width, int height) override
     {
         g.setColour(backgroundColor);
         g.fillRect(0, 0, width, height);
@@ -96,92 +94,55 @@ public:
     }
 
     juce::Font getPopupMenuFont() override { return juce::Font(24.0f); }
-private:
+
+  private:
     juce::Colour backgroundColor, outlineColor, sliderColor;
 };
 
 class PitchVisualizer : public juce::Component, juce::Timer
 {
-public:
-    PitchVisualizer(XenosSynth& syn, Quantizer2& q) : synth(syn), quan(q)
-    {
-        startTimerHz(30);
-    }
-    void timerCallback() override
-    {
-        repaint();
-    }
-    void paint(juce::Graphics& g) override
-    {
-        if (quan.mts_client && MTS_HasMaster(quan.mts_client))
-            g.setColour(juce::Colours::cyan);
-        else g.setColour(juce::Colours::white);
-        double minfreq = Tunings::MIDI_0_FREQ * 4;
-        for (int i=0;i<synth.getNumVoices();++i)
-        {
-            auto* v = dynamic_cast<XenosVoice*>(synth.getVoice(i));
-            if (v->isVoiceActive())
-            {
-                // technically, reading the voice variable here in the GUI thread is wrong because it's not atomic.
-                // but it will probably work ok.
-                double hz = v->xenos.curQuantizedHz; 
-                double pitch = 12.0 * std::log2(hz/minfreq);
-                double xcor = juce::jmap<double>(pitch,0.0,100.0,0.0,getWidth());
-                g.drawLine(xcor,0,xcor,getHeight()/2);
-                float panpos = v->cachedPanPosition;
-                xcor = juce::jmap<double>(panpos,0.0,1.0,0.0,getWidth()-getHeight()/2);
-                g.fillEllipse(xcor,0,getHeight()/2,getHeight()/2);
-            }
-        }
-        // draw ticks for currently active tuning
-        for (int i=0;i<128;++i)
-        {
-            double hz = quan.getHzForMidiNote(i);
-            double pitch = 12.0 * std::log2(hz/minfreq);
-            double xcor = juce::jmap<double>(pitch,0.0,100.0,0.0,getWidth());
-            g.drawLine(xcor,getHeight()/2,xcor,getHeight());
-        }
-        
-    }
-private:
-    XenosSynth& synth;
-    Quantizer2& quan;
+  public:
+    PitchVisualizer(XenosSynth &syn, Quantizer2 &q) : synth(syn), quan(q) { startTimerHz(30); }
+    void timerCallback() override { repaint(); }
+    void paint(juce::Graphics &g) override;
+
+  private:
+    XenosSynth &synth;
+    Quantizer2 &quan;
 };
 
-class XenosAudioProcessorEditor
-    : public juce::AudioProcessorEditor, public juce::Timer
-    , private juce::Button::Listener {
-public:
-    typedef juce::AudioProcessorValueTreeState::SliderAttachment
-        SliderAttachment;
-    typedef juce::AudioProcessorValueTreeState::ComboBoxAttachment
-        ComboBoxAttachment;
+class XenosAudioProcessorEditor : public juce::AudioProcessorEditor,
+                                  public juce::Timer,
+                                  private juce::Button::Listener
+{
+  public:
+    typedef juce::AudioProcessorValueTreeState::SliderAttachment SliderAttachment;
+    typedef juce::AudioProcessorValueTreeState::ComboBoxAttachment ComboBoxAttachment;
 
-    XenosAudioProcessorEditor(XenosAudioProcessor&,
-                              juce::AudioProcessorValueTreeState&);
+    XenosAudioProcessorEditor(XenosAudioProcessor &, juce::AudioProcessorValueTreeState &);
     ~XenosAudioProcessorEditor() override;
 
     //==============================================================================
-    void paint(juce::Graphics&) override;
+    void paint(juce::Graphics &) override;
     void resized() override;
 
     void timerCallback() override;
 
     //==============================================================================
-    void formatHeaderLabel(juce::Label& label, std::string t);
-    void initParamSlider(ParamSlider& slider, std::string p, std::string d,
-                         sliderStyle s = vertical,
-                         juce::Colour c = juce::Colours::red);
+    void formatHeaderLabel(juce::Label &label, std::string t);
+    void initParamSlider(ParamSlider &slider, std::string p, std::string d,
+                         sliderStyle s = vertical, juce::Colour c = juce::Colours::red);
     // if numEntriesToAdd is 0, all choices from the choice parameter are added,
     // otherwise the provided number is used, useful for for leaving out "reserved" choice entries
-    void initParamMenu(ParamMenu& menu, std::string p, std::string d,
-                       float labelOffsetX = 0.0f, int numEntriesToAdd=0);
-    void buttonClicked(juce::Button* button) override;
+    void initParamMenu(ParamMenu &menu, std::string p, std::string d, float labelOffsetX = 0.0f,
+                       int numEntriesToAdd = 0);
+    void buttonClicked(juce::Button *button) override;
     void loadCustomScale();
-    void mouseDown(const juce::MouseEvent& ev) override;
-private:
-    XenosAudioProcessor& audioProcessor;
-    juce::AudioProcessorValueTreeState& valueTreeState;
+    void mouseDown(const juce::MouseEvent &ev) override;
+
+  private:
+    XenosAudioProcessor &audioProcessor;
+    juce::AudioProcessorValueTreeState &valueTreeState;
     XenosLookAndFeel xenosLookAndFeel;
     juce::Label cpuLoadLabel;
     ParamSlider pitchWidth;

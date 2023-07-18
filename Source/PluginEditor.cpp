@@ -18,15 +18,15 @@ XenosAudioProcessorEditor::XenosAudioProcessorEditor(XenosAudioProcessor &p,
                                                      juce::AudioProcessorValueTreeState &vts)
     : AudioProcessorEditor(&p), audioProcessor(p), valueTreeState(vts), customButton("load..."),
       keyboardComponent(p.keyboardState, juce::MidiKeyboardComponent::horizontalKeyboard),
-      pitchVisualizer(p.xenosAudioSource.xenosSynth,p.xenosAudioSource.sharedquantizer)
+      pitchVisualizer(p.xenosAudioSource.xenosSynth, p.xenosAudioSource.sharedquantizer)
 {
     startTimer(100);
     setSize(700, 560);
     addAndMakeVisible(cpuLoadLabel);
     cpuLoadLabel.setBounds(0, 0, 100, 20);
-    
+
     addAndMakeVisible(pitchVisualizer);
-    
+
     red = juce::Colours::red;
     green = juce::Colours::lawngreen;
     blue = juce::Colours::cornflowerblue;
@@ -133,7 +133,6 @@ void XenosAudioProcessorEditor::timerCallback()
 {
     juce::String loadTxt(audioProcessor.loadMeasurer.getLoadAsPercentage(), 1);
     cpuLoadLabel.setText(loadTxt + "% CPU", juce::dontSendNotification);
-    
 }
 
 //==============================================================================
@@ -161,7 +160,6 @@ void XenosAudioProcessorEditor::paint(juce::Graphics &g)
     juce::String copyr = juce::String::fromUTF8(u8"\u00A9");
     g.drawText("Copyright " + copyr + " 2022 Raphael Radna. All rights reserved.", margin,
                h - margin, w - margin * 2, margin, juce::Justification::right);
-    
 }
 
 void XenosAudioProcessorEditor::resized()
@@ -224,7 +222,7 @@ void XenosAudioProcessorEditor::resized()
 
     auto keyboardY = 13 * h / 16;
     keyboardComponent.setBounds(margin, keyboardY, w - margin * 2, h - keyboardY - margin);
-    pitchVisualizer.setBounds(0,keyboardComponent.getY()-20,getWidth(),20);
+    pitchVisualizer.setBounds(0, keyboardComponent.getY() - 20, getWidth(), 20);
 }
 
 //==============================================================================
@@ -367,5 +365,43 @@ void XenosAudioProcessorEditor::loadCustomScale()
 
             audioProcessor.updateHostDisplay();
         }
+    }
+}
+
+void PitchVisualizer::paint(juce::Graphics &g)
+{
+    juce::Colour tickColor;
+    if (quan.mts_client && MTS_HasMaster(quan.mts_client))
+        tickColor = juce::Colours::cyan;
+    else
+        tickColor = juce::Colours::white;
+    double minfreq = Tunings::MIDI_0_FREQ * 4;
+    for (int i = 0; i < synth.getNumVoices(); ++i)
+    {
+        auto *v = dynamic_cast<XenosVoice *>(synth.getVoice(i));
+        if (v->isVoiceActive())
+        {
+            // technically, reading the voice variables here in the GUI thread is wrong because they
+            // are not atomic. but it will probably work ok. changing them to atomics would probably
+            // also work ok...
+            double hz = v->xenos.curQuantizedHz;
+            double pitch = 12.0 * std::log2(hz / minfreq);
+            double xcor = juce::jmap<double>(pitch, 0.0, 100.0, 0.0, getWidth());
+            g.setColour(tickColor);
+            g.drawLine(xcor, 0, xcor, getHeight() / 2);
+            float panpos = v->cachedPanPosition;
+            xcor = juce::jmap<double>(panpos, 0.0, 1.0, 0.0, getWidth() - getHeight() / 2);
+            g.setColour(juce::Colours::red.withAlpha(0.5f));
+            g.fillEllipse(xcor, 0, getHeight() / 2, getHeight() / 2);
+        }
+    }
+    g.setColour(tickColor);
+    // draw ticks for currently active tuning
+    for (int i = 0; i < 128; ++i)
+    {
+        double hz = quan.getHzForMidiNote(i);
+        double pitch = 12.0 * std::log2(hz / minfreq);
+        double xcor = juce::jmap<double>(pitch, 0.0, 100.0, 0.0, getWidth());
+        g.drawLine(xcor, getHeight() / 2, xcor, getHeight());
     }
 }
