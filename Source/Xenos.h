@@ -21,6 +21,7 @@
 #include "sst/basic-blocks/dsp/PanLaws.h"
 #include "sst/basic-blocks/modulators/SimpleLFO.h"
 #include "SSTQuantizer.h"
+#include "somedsp.h"
 
 #define MAX_POINTS (128)
 #define NUM_VOICES (128)
@@ -34,6 +35,7 @@ struct XenosCore
         ampWalk.initialize(MAX_POINTS);
         ampWalk.setParams(1.0);
         reset();
+        hzSmoothingFilter.setParameters(BiquadFilter::LOWPASS_1POLE, 16.0 / sr, 1.0, 1.0);
     }
     int tuningUpdateRate = 256;
     int tuningUpdateCounter = 0;
@@ -43,7 +45,9 @@ struct XenosCore
         {
             pitchWalk.reset(i, mtos(pitchCenter, sampleRate) / nPoints);
             // ampWalk.reset(i, uniform(generator));
-            ampWalk.reset(i, 0.0f);
+            // ampWalk.reset(i, 0.0f);
+            float ph = juce::jmap<float>(i, 0, nPoints, 0.0f, M_PI * 2);
+            ampWalk.reset(i, std::sin(ph));
         }
         calcMetaParams();
     }
@@ -65,6 +69,7 @@ struct XenosCore
     }
     double curHz = 440.0;
     double curQuantizedHz = 440.0;
+    BiquadFilter hzSmoothingFilter;
     double operator()()
     {
         if (tuningUpdateCounter == 0)
@@ -80,6 +85,8 @@ struct XenosCore
             index = 0.0;
         int intdex = floor(index);
         double quanfactor = curHz / curQuantizedHz;
+        quanfactor = hzSmoothingFilter.process(quanfactor);
+        quanfactor = juce::jlimit(0.25, 4.0, quanfactor);
         // double segmentSamps = pitchWalk(intdex, quantizer.getFactor()) * bend;
         double segmentSamps = pitchWalk(intdex, quanfactor) * bend;
         double increment = 1 / segmentSamps;
@@ -118,6 +125,7 @@ struct XenosCore
         nPoints_ = 0;
     }
     double pitchCenterAsKey = 0.0;
+
     void setPitchCenter(float pC)
     {
         pitchCenterAsKey = pC;
@@ -578,5 +586,4 @@ class XenosSynthHolder
 
   private:
     juce::MidiKeyboardState &keyboardState;
-    
 };
