@@ -4,3 +4,6 @@
 [submodule "libs/sst-basic-blocks"]
 	path = libs/sst-basic-blocks
 	url = https://github.com/surge-synthesizer/sst-basic-blocks.git
+[submodule "libs/MTS-ESP"]
+	path = libs/MTS-ESP
+	url = https://github.com/ODDSound/MTS-ESP.git
