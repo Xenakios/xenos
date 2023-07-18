@@ -1,3 +1,6 @@
 [submodule "libs/tuning-library"]
 	path = libs/tuning-library
 	url = https://github.com/surge-synthesizer/tuning-library.git
+[submodule "libs/sst-basic-blocks"]
+	path = libs/sst-basic-blocks
+	url = https://github.com/surge-synthesizer/sst-basic-blocks.git
