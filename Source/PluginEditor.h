@@ -128,8 +128,12 @@ public:
                 double pitch = 12.0 * std::log2(hz/minfreq);
                 double xcor = juce::jmap<double>(pitch,0.0,100.0,0.0,getWidth());
                 g.drawLine(xcor,0,xcor,getHeight()/2);
+                float panpos = v->cachedPanPosition;
+                xcor = juce::jmap<double>(panpos,0.0,1.0,0.0,getWidth()-getHeight()/2);
+                g.fillEllipse(xcor,0,getHeight()/2,getHeight()/2);
             }
         }
+        // draw ticks for currently active tuning
         for (int i=0;i<128;++i)
         {
             double hz = quan.getHzForMidiNote(i);

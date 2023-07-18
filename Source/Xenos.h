@@ -305,7 +305,7 @@ struct XenosVoice : public juce::SynthesiserVoice
     {
         afterTouchAmount = newAftertouchValue / 127.0;
     }
-
+    float cachedPanPosition = 0.5f;
     void renderNextBlock(juce::AudioSampleBuffer &outputBuffer, int startSample,
                          int numSamples) override
     {
@@ -340,6 +340,7 @@ struct XenosVoice : public juce::SynthesiserVoice
                                                                       vpm, noteCounter);
                     }
                     sst::basic_blocks::dsp::pan_laws::monoEqualPower(panposition, panmatrix);
+                    cachedPanPosition = panposition;
                 }
                 ++lfo_updatecounter;
                 if (lfo_updatecounter == srprovider->BLOCK_SIZE)
