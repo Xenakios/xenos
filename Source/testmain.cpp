@@ -17,7 +17,7 @@ void test_xenoscore()
     core.initialize(sr);
     XenosSynth synth;
     juce::MidiKeyboardState state;
-    XenosSynthAudioSource source(state);
+    XenosSynthHolder source(state);
 
     core.setPitchWidth(12.0f);
     core.setPitchCenter(67.0f);

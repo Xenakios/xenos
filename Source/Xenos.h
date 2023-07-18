@@ -153,8 +153,8 @@ struct XenosCore
     }
 
     double sampleRate = 44100.0;
-    float pitchCenter = 48.0f; // midi pitch
-    float pitchWidthKeys = 1.0f;   // keys
+    float pitchCenter = 48.0f;   // midi pitch
+    float pitchWidthKeys = 1.0f; // keys
     double periodRange[2];
     double bend = 1.0;
     int nPoints = 12;
@@ -397,13 +397,13 @@ class XenosSynth : public juce::Synthesiser
 };
 
 //==============================================================================
-class XenosSynthAudioSource : public juce::AudioSource
+class XenosSynthHolder
 {
   public:
     SRProvider srProvider;
     Quantizer2 sharedquantizer;
     Tunings::KeyboardMapping sharedKBM;
-    XenosSynthAudioSource(juce::MidiKeyboardState &keyState) : keyboardState(keyState)
+    XenosSynthHolder(juce::MidiKeyboardState &keyState) : keyboardState(keyState)
     {
         sharedKBM = Tunings::startScaleOnAndTuneNoteTo(69, 69, 440.0);
         for (auto i = 0; i < NUM_VOICES; ++i)
@@ -415,24 +415,18 @@ class XenosSynthAudioSource : public juce::AudioSource
 
     void setUsingSineWaveSound() { xenosSynth.clearSounds(); }
 
-    void prepareToPlay(int /*samplesPerBlockExpected*/, double sampleRate) override
+    void prepareToPlay(int /*samplesPerBlockExpected*/, double sampleRate)
     {
         srProvider.samplerate = sampleRate;
         srProvider.initTables();
         xenosSynth.setCurrentPlaybackSampleRate(sampleRate);
     }
 
-    void releaseResources() override {}
-
-    void getNextAudioBlock(const juce::AudioSourceChannelInfo &bufferToFill) override
+    void processBlock(juce::AudioBuffer<float> &buffer, juce::MidiBuffer &midiMessages)
     {
-        bufferToFill.clearActiveBufferRegion();
-
-        keyboardState.processNextMidiBuffer(midiBuffer, bufferToFill.startSample,
-                                            bufferToFill.numSamples, true);
-
-        xenosSynth.renderNextBlock(*bufferToFill.buffer, midiBuffer, bufferToFill.startSample,
-                                   bufferToFill.numSamples);
+        buffer.clear();
+        keyboardState.processNextMidiBuffer(midiMessages, 0, buffer.getNumSamples(), true);
+        xenosSynth.renderNextBlock(buffer, midiMessages, 0, buffer.getNumSamples());
     }
 
     void setParam(const juce::String &parameterID, float newValue)
@@ -559,7 +553,6 @@ class XenosSynthAudioSource : public juce::AudioSource
         }
     }
 
-    void setMidiBuffer(juce::MidiBuffer &mB) { midiBuffer = mB; }
     bool loadScala(juce::File fn)
     {
         auto err = sharedquantizer.loadScalaFile(fn, sharedKBM);
@@ -584,5 +577,5 @@ class XenosSynthAudioSource : public juce::AudioSource
 
   private:
     juce::MidiKeyboardState &keyboardState;
-    juce::MidiBuffer midiBuffer;
+    
 };
