@@ -140,8 +140,7 @@ struct Quantizer2
                                                 1.660388, 1.806806, 1.966134, 2.139512, 2.328178,
                                                 2.533484, 2.756892, 3.0}));   // bohlen-pierce
         scalePresets.push_back(Tunings::evenDivisionOfCentsByM(1200.0f, 24)); // quarter-tone
-        auto scale = Tunings::readSCLFile(R"(C:\develop\xenos\scala_scales\major_chord_ji.scl)");
-        scalePresets.push_back(scale);
+        scalePresets.push_back(Tunings::evenDivisionOfCentsByM(1200.0f, 12)); // 12edo placeholder for custom Scala file
         jassert(scalePresets.size() == SCALE_PRESETS + 1);
     }
     double quantizeHz(double sourceHz)
