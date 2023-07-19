@@ -15,13 +15,12 @@
 #include <JuceHeader.h>
 #include "Xenos.h"
 
-
-
 //==============================================================================
 /**
  */
-class XenosAudioProcessor : public juce::AudioProcessor {
-public:
+class XenosAudioProcessor : public juce::AudioProcessor
+{
+  public:
     //==============================================================================
     XenosAudioProcessor();
     ~XenosAudioProcessor() override;
@@ -29,15 +28,15 @@ public:
     //==============================================================================
     void prepareToPlay(double sampleRate, int samplesPerBlock) override;
     void releaseResources() override;
-    
+
 #ifndef JucePlugin_PreferredChannelConfigurations
-    bool isBusesLayoutSupported(const BusesLayout& layouts) const override;
+    bool isBusesLayoutSupported(const BusesLayout &layouts) const override;
 #endif
 
-    void processBlock(juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
+    void processBlock(juce::AudioBuffer<float> &, juce::MidiBuffer &) override;
 
     //==============================================================================
-    juce::AudioProcessorEditor* createEditor() override;
+    juce::AudioProcessorEditor *createEditor() override;
     bool hasEditor() const override;
 
     //==============================================================================
@@ -53,11 +52,11 @@ public:
     int getCurrentProgram() override;
     void setCurrentProgram(int index) override;
     const juce::String getProgramName(int index) override;
-    void changeProgramName(int index, const juce::String& newName) override;
+    void changeProgramName(int index, const juce::String &newName) override;
 
     //==============================================================================
-    void getStateInformation(juce::MemoryBlock& destData) override;
-    void setStateInformation(const void* data, int sizeInBytes) override;
+    void getStateInformation(juce::MemoryBlock &destData) override;
+    void setStateInformation(const void *data, int sizeInBytes) override;
 
     //==============================================================================
     juce::MidiKeyboardState keyboardState;
@@ -69,46 +68,44 @@ public:
     XenosSynthHolder xenosAudioSource;
     const int numActualVoicePanModes = 6;
     juce::AudioProcessLoadMeasurer loadMeasurer;
-private:
+
+  private:
     //==============================================================================
     juce::AudioProcessorValueTreeState params;
 
-    std::atomic<float>* segmentsParam = nullptr;
+    std::atomic<float> *segmentsParam = nullptr;
 
-    std::atomic<float>* pitchWidthParam = nullptr;
-    std::atomic<float>* pitchBarrierParam = nullptr;
-    std::atomic<float>* pitchStepParam = nullptr;
-    std::atomic<float>* ampGainParam = nullptr;
-    std::atomic<float>* ampBarrierParam = nullptr;
-    std::atomic<float>* ampStepParam = nullptr;
+    std::atomic<float> *pitchWidthParam = nullptr;
+    std::atomic<float> *pitchBarrierParam = nullptr;
+    std::atomic<float> *pitchStepParam = nullptr;
+    std::atomic<float> *ampGainParam = nullptr;
+    std::atomic<float> *ampBarrierParam = nullptr;
+    std::atomic<float> *ampStepParam = nullptr;
 
-    std::atomic<float>* pitchDistributionParam = nullptr;
-    std::atomic<float>* pitchWalkParam = nullptr;
-    std::atomic<float>* pitchAlphaParam = nullptr;
-    std::atomic<float>* pitchBetaParam = nullptr;
+    std::atomic<float> *pitchDistributionParam = nullptr;
+    std::atomic<float> *pitchWalkParam = nullptr;
+    std::atomic<float> *pitchAlphaParam = nullptr;
+    std::atomic<float> *pitchBetaParam = nullptr;
 
-    std::atomic<float>* ampDistributionParam = nullptr;
-    std::atomic<float>* ampWalkParam = nullptr;
-    std::atomic<float>* ampAlphaParam = nullptr;
-    std::atomic<float>* ampBetaParam = nullptr;
+    std::atomic<float> *ampDistributionParam = nullptr;
+    std::atomic<float> *ampWalkParam = nullptr;
+    std::atomic<float> *ampAlphaParam = nullptr;
+    std::atomic<float> *ampBetaParam = nullptr;
 
-    std::atomic<float>* attackParam = nullptr;
-    std::atomic<float>* decayParam = nullptr;
-    std::atomic<float>* sustainParam = nullptr;
-    std::atomic<float>* releaseParam = nullptr;
+    std::atomic<float> *attackParam = nullptr;
+    std::atomic<float> *decayParam = nullptr;
+    std::atomic<float> *sustainParam = nullptr;
+    std::atomic<float> *releaseParam = nullptr;
 
-    std::atomic<float>* scaleParam = nullptr;
-    std::atomic<float>* rootParam = nullptr;
+    std::atomic<float> *scaleParam = nullptr;
+    std::atomic<float> *rootParam = nullptr;
 
-    std::atomic<float>* hpFilterParam = nullptr;
+    std::atomic<float> *hpFilterParam = nullptr;
 
     const int customScaleParamIndex = SCALE_PRESETS + 1;
 
     juce::dsp::StateVariableTPTFilter<float> outputFilter;
     float previousOutputFilterFrequency = 0.0f;
-    
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(XenosAudioProcessor)
 };
-
-
-

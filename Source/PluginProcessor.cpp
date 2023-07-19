@@ -262,10 +262,7 @@ void XenosAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     loadMeasurer.reset(sampleRate, samplesPerBlock);
 }
 
-void XenosAudioProcessor::releaseResources()
-{
-    
-}
+void XenosAudioProcessor::releaseResources() {}
 
 #ifndef JucePlugin_PreferredChannelConfigurations
 bool XenosAudioProcessor::isBusesLayoutSupported(const BusesLayout &layouts) const
