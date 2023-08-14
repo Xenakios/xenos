@@ -152,6 +152,12 @@ const char *grainScreenE[4] = {"BAAAAAAAAAAAAAAA", "AABAAAAAAAAAAAAA", "AAAAAAAA
 const char *grainScreenF[4] = {"AAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAA", "BABABABABABABABA",
                                "ABABABABABABABAB"};
 
+const char *grainScreenG[4] = {"DDDDAAAAAAAADDDD", "AAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAA",
+                               "AAAAAAAFAAAAAAAA"};
+
+const char *grainScreenH[4] = {"AAAAAAAAAAAEAAAA", "AAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAA",
+                               "EEEEEEEEEEEAEEEE"};
+
 class XenGranularEngine
 {
   public:
@@ -181,7 +187,7 @@ class XenGranularEngine
 
         int screendursamples = m_screen_dur * m_sr;
         std::uniform_real_distribution<double> tposdist{0.0, 1.0};
-        std::uniform_int_distribution<int> screendist{0, 5};
+        std::uniform_int_distribution<int> screendist{0, 7};
         const char **screendata = nullptr;
         int screentouse = screendist(m_rng);
         if (screentouse == 0)
@@ -196,6 +202,10 @@ class XenGranularEngine
             screendata = grainScreenE;
         if (screentouse == 5)
             screendata = grainScreenF;
+        if (screentouse == 6)
+            screendata = grainScreenG;
+        if (screentouse == 7)
+            screendata = grainScreenH;
         for (int i = 0; i < 16; ++i)
         {
             for (int j = 0; j < 4; ++j)
@@ -210,8 +220,8 @@ class XenGranularEngine
                     {
 
                         float pitch =
-                            juce::jmap<float>(i + tposdist(m_rng), 0.0, 16.0, 24.0, 104.0);
-                        float hz = 440.0 * std::pow(2.0, 1.0 / 12 * (pitch - 69));
+                            juce::jmap<float>(i + tposdist(m_rng), 0.0, 16.0, 24.0, 115.0);
+                        float hz = 440.0 * std::pow(2.0, 1.0 / 12.0 * (pitch - 69.0));
                         float graindur = juce::jmap<float>(pitch, 24.0, 104.0, 0.2, 0.025);
                         int graindursamples = graindur * m_sr;
                         float tpos = tposdist(m_rng) * (m_screen_dur - graindur);
@@ -219,14 +229,17 @@ class XenGranularEngine
                         float volume =
                             juce::jmap<float>(j + tposdist(m_rng), 0.0, 4.0, -40.0, -6.0);
                         float gain = juce::Decibels::decibelsToGain(volume);
-
+                        gain *= 0.5;
                         for (int sample = tpossamples; sample < tpossamples + graindursamples;
                              ++sample)
                         {
                             if (sample >= screendursamples)
                                 break;
                             int envpos = sample - tpossamples;
-                            float outsample = std::sin(2 * M_PI / m_sr * envpos * hz) * gain;
+                            float outsample0 = std::sin(2 * M_PI / m_sr * envpos * hz) * gain;
+                            float outsample1 =
+                                std::sin(2 * M_PI / m_sr * envpos * hz * 2) * gain * 0.25;
+                            float outsample = outsample0 + outsample1;
                             const float fadepercent = 0.1;
                             if (envpos < graindursamples * fadepercent)
                                 outsample *= juce::jmap<float>(
@@ -244,7 +257,7 @@ class XenGranularEngine
             }
         }
     }
-    std::mt19937 m_rng{37};
+    std::mt19937 m_rng{39};
     void processSample(float *outframe)
     {
         if (m_phase == 0)
