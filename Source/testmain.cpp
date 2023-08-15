@@ -215,10 +215,11 @@ class XenGranularEngine
                 {
                     density = 1.5 * std::pow(density, M_E);
                     int numgrains = std::round(density * m_screen_dur);
-                    sst::basic_blocks::dsp::pan_laws::monoEqualPower(panpositions[j][i], panmatrix);
+                    
                     for (int k = 0; k < numgrains; ++k)
                     {
-
+                        float panposition = tposdist(m_rng);
+                        sst::basic_blocks::dsp::pan_laws::monoEqualPower(panposition, panmatrix);
                         float pitch =
                             juce::jmap<float>(i + tposdist(m_rng), 0.0, 16.0, 24.0, 115.0);
                         float hz = 440.0 * std::pow(2.0, 1.0 / 12.0 * (pitch - 69.0));
