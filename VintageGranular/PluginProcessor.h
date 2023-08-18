@@ -3,6 +3,7 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <random>
 #include "sst/basic-blocks/dsp/PanLaws.h"
+#include "choc_SingleReaderSingleWriterFIFO.h"
 
 static const char *grainScreenA[4] = {"BAAAAAAAAAAAAAAA", "AAAAAAAEAAAAAAAA", "AAAAAACAAAAAAAAA",
                                       "AAAAAAAAAAAAAAAD"};
@@ -68,6 +69,7 @@ class XenGranularEngine
 {
   public:
     std::vector<GrainInfo> grains_to_play;
+    choc::fifo::SingleReaderSingleWriterFIFO<GrainInfo> grains_to_gui_fifo;
     juce::SpinLock spinlock;
     int m_screen_phase = 0;
     int m_block_phase = 0;
@@ -80,7 +82,7 @@ class XenGranularEngine
     {
         grains_to_play.reserve(16384);
         std::uniform_real_distribution<float> pandist{0.0f, 1.0f};
-
+        grains_to_gui_fifo.reset(16384);
         for (int i = 0; i < 4; ++i)
             for (int j = 0; j < 16; ++j)
             {
@@ -114,6 +116,11 @@ class XenGranularEngine
                 juce::Range<int> grainregion(grain.tpos * m_sr, (grain.tpos + grain.dur) * m_sr);
                 if (blockregion.intersects(grainregion))
                 {
+                    if (!grain.active)
+                    {
+                        grain.active = true;
+                        grains_to_gui_fifo.push(grain);
+                    }
                     sst::basic_blocks::dsp::pan_laws::monoEqualPower(grain.pan, panmatrix);
                     for (int i = 0; i < m_block_len; ++i)
                     {
@@ -121,6 +128,9 @@ class XenGranularEngine
                         m_blockout_buf[i * 2 + 0] += os * panmatrix[0];
                         m_blockout_buf[i * 2 + 1] += os * panmatrix[3];
                     }
+                } else
+                {
+                    grain.active = false;
                 }
             }
         }

@@ -78,7 +78,7 @@ include_directories(
     libs/tuning-library/include
     libs/MTS-ESP/Client
     libs/sst-waveshapers/include
-    
+    libs/choc/containers
     )
 
 target_sources(${APP_NAME} PRIVATE
