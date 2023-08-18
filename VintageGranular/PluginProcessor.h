@@ -70,7 +70,7 @@ class XenGranularEngine
   public:
     std::vector<GrainInfo> grains_to_play;
     choc::fifo::SingleReaderSingleWriterFIFO<GrainInfo> grains_to_gui_fifo;
-    juce::SpinLock spinlock;
+
     int m_screen_phase = 0;
     int m_block_phase = 0;
     int m_block_len = 32;
@@ -128,7 +128,8 @@ class XenGranularEngine
                         m_blockout_buf[i * 2 + 0] += os * panmatrix[0];
                         m_blockout_buf[i * 2 + 1] += os * panmatrix[3];
                     }
-                } else
+                }
+                else
                 {
                     grain.active = false;
                 }

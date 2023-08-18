@@ -185,7 +185,7 @@ void XenGranularEngine::generateScreen()
     if (screentouse == 7)
         screendata = grainScreenH;
     m_cur_screen = screentouse;
-    //spinlock.enter();
+
     grains_to_play.clear();
     for (int i = 0; i < 16; ++i)
     {
@@ -213,12 +213,11 @@ void XenGranularEngine::generateScreen()
                     grains_to_play.back().pan = panpos;
                     grains_to_play.back().pitch = pitch;
                     grains_to_play.back().volume = volume;
-                    //grains_to_gui_fifo.push(grains_to_play.back());
                 }
             }
         }
     }
-    //spinlock.exit();
+
     maxGrainsActive = std::max(maxGrainsActive, (int)grains_to_play.size());
 }
 
