@@ -57,6 +57,8 @@ include_directories(
     libs/sst-basic-blocks/include
     libs/tuning-library/include
     libs/MTS-ESP/Client
+    libs/sst-waveshapers/include
+    
     )
 
 target_sources(${APP_NAME} PRIVATE

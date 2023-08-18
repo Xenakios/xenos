@@ -4,6 +4,7 @@
 #include "Tunings.h"
 #include <random>
 #include "sst/basic-blocks/dsp/PanLaws.h"
+#include "sst/waveshapers.h"
 
 static std::unique_ptr<juce::AudioFormatWriter> makeWavWriter(juce::File outfile, int chans,
                                                               double sr)
@@ -203,12 +204,12 @@ class XenGranularEngine
     double m_screen_dur = 0.5;
     double m_sr = 44100.0;
     float panpositions[4][16];
-    std::vector<float> m_screen_buffer;
+
     XenGranularEngine()
     {
         grains_to_play.reserve(16384);
         std::uniform_real_distribution<float> pandist{0.0f, 1.0f};
-        m_screen_buffer.resize(m_screen_dur * m_sr * 2);
+
         for (int i = 0; i < 4; ++i)
             for (int j = 0; j < 16; ++j)
             {
@@ -218,6 +219,7 @@ class XenGranularEngine
                     panpositions[i][j] = 0.5;
             }
     }
+    int maxGrainsActive = 0;
     void generateScreen()
     {
         double minpitch = 24.0;
@@ -257,7 +259,7 @@ class XenGranularEngine
                     int numgrains = std::round(density * m_screen_dur);
                     for (int k = 0; k < numgrains; ++k)
                     {
-                        float pitch = juce::jmap<float>(i + pitchdist(m_rng) * 0.01, 0.0, 16.0,
+                        float pitch = juce::jmap<float>(i + pitchdist(m_rng) * 0.5, 0.0, 16.0,
                                                         minpitch, maxpitch);
                         float hz = 440.0 * std::pow(2.0, 1.0 / 12.0 * (pitch - 69.0));
                         float graindur = juce::jmap<float>(pitch, minpitch, maxpitch, 0.2, 0.025);
@@ -274,6 +276,7 @@ class XenGranularEngine
                 }
             }
         }
+        maxGrainsActive = std::max(maxGrainsActive, (int)grains_to_play.size());
     }
     sst::basic_blocks::dsp::pan_laws::panmatrix_t panmatrix;
 
@@ -326,14 +329,21 @@ void test_xen_grains()
     int outlen = 60 * 44100;
     juce::AudioBuffer<float> buf(2, outlen);
     float gainscaler = juce::Decibels::decibelsToGain(-20.0);
+    auto shaper = sst::waveshapers::GetQuadWaveshaper(sst::waveshapers::WaveshaperType::wst_singlefold);
+    sst::waveshapers::QuadWaveshaperState shaperstateL;
+    shaperstateL.init = _mm_cmpneq_ps(_mm_setzero_ps(), _mm_setzero_ps());
+    sst::waveshapers::QuadWaveshaperState shaperstateR;
+    shaperstateR.init = _mm_cmpneq_ps(_mm_setzero_ps(), _mm_setzero_ps());
     for (int i = 0; i < outlen; ++i)
     {
         float samples[2];
         eng->processSample(samples);
+        
         buf.setSample(0, i, std::tanh(gainscaler * samples[0]));
         buf.setSample(1, i, std::tanh(gainscaler * samples[1]));
     }
     writer->writeFromAudioSampleBuffer(buf, 0, outlen);
+    std::cout << eng->maxGrainsActive << " grains at most were generated\n";
 }
 
 int main()
