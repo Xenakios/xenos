@@ -33,6 +33,16 @@ void AudioPluginAudioProcessorEditor::paint (juce::Graphics& g)
         geng.spinlock.exit();
         char screenchar = geng.m_cur_screen + 65;
         g.drawText(juce::String(screenchar),0,0,40,20,juce::Justification::centredLeft);
+        g.setColour(juce::Colours::green);
+        for (int i=0;i<16;++i)
+        {
+            g.drawLine(getWidth()/16.0*i,20.0, getWidth()/16.0*i,getHeight());
+        }
+        for (int i=0;i<4;++i)
+        {
+            double ycor = juce::jmap<double>(i,0,4,20.0,getHeight());
+            g.drawLine(0,ycor,getWidth(),ycor);
+        }
     }
     
 }
