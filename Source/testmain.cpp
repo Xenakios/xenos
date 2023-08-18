@@ -147,7 +147,7 @@ const char *grainScreenD[4] = {"AABAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAA", "AAAAAAAE
                                "AAAAAAAAAAAAAAEE"};
 
 const char *grainScreenE[4] = {"BAAAAAAAAAAAAAAA", "AABAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAA",
-                               "AAAAAAAAAAACBAB"};
+                               "AAAAAAAAAAACBABA"};
 
 const char *grainScreenF[4] = {"AAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAA", "BABABABABABABABA",
                                "ABABABABABABABAB"};
@@ -158,17 +158,55 @@ const char *grainScreenG[4] = {"DDDDAAAAAAAADDDD", "AAAAAAAAAAAAAAAA", "AAAAAAAA
 const char *grainScreenH[4] = {"AAAAAAAAAAAEAAAA", "AAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAA",
                                "EEEEEEEEEEEAEEEE"};
 
+struct GrainInfo
+{
+    GrainInfo() {}
+    GrainInfo(double tpos_, double dur_, double hz_, double gain_, int ochan_)
+        : tpos(tpos_), dur(dur_), hz(hz_), gain(gain_), outputchan(ochan_)
+    {
+        phase = 0.0;
+    }
+    float getSample()
+    {
+        double dursamples = dur * sr;
+        if (phase >= dursamples)
+            return 0.0f;
+        float out = std::sin(2 * M_PI / sr * hz * phase);
+        out *= gain;
+        double fadelen = dursamples * 0.1;
+        if (phase < fadelen)
+            out *= jmap<double>(phase, 0.0, fadelen, 0.0, 1.0);
+        if (phase >= dursamples - fadelen)
+            out *= jmap<double>(phase, dursamples - fadelen, dursamples, 1.0, 0.0);
+        phase += 1.0;
+        return out;
+    }
+    double phase = 0.0;
+    double tpos = 0.0;
+    double dur = 0.05;
+    double hz = 440.0;
+    double gain = 0.0;
+    double sr = 44100.0;
+    int outputchan = 0;
+    bool active = false;
+    double pan = 0.5;
+};
+
 class XenGranularEngine
 {
   public:
+    std::vector<GrainInfo> grains_to_play;
     GrainVoice m_voices[2048];
-    int m_phase = 0;
+    int m_screen_phase = 0;
+    int m_block_phase = 0;
+    int m_block_len = 32;
     double m_screen_dur = 0.5;
     double m_sr = 44100.0;
     float panpositions[4][16];
     std::vector<float> m_screen_buffer;
     XenGranularEngine()
     {
+        grains_to_play.reserve(16384);
         std::uniform_real_distribution<float> pandist{0.0f, 1.0f};
         m_screen_buffer.resize(m_screen_dur * m_sr * 2);
         for (int i = 0; i < 4; ++i)
@@ -180,13 +218,9 @@ class XenGranularEngine
                     panpositions[i][j] = 0.5;
             }
     }
-    sst::basic_blocks::dsp::pan_laws::panmatrix_t panmatrix;
-    void renderScreenAudio()
+    void generateScreen()
     {
-        std::fill(m_screen_buffer.begin(), m_screen_buffer.end(), 0.0f);
-
-        int screendursamples = m_screen_dur * m_sr;
-        std::uniform_real_distribution<double> tposdist{0.0, 1.0};
+        std::uniform_real_distribution<double> unidist{0.0, 1.0};
         std::uniform_int_distribution<int> screendist{0, 7};
         const char **screendata = nullptr;
         int screentouse = screendist(m_rng);
@@ -206,6 +240,7 @@ class XenGranularEngine
             screendata = grainScreenG;
         if (screentouse == 7)
             screendata = grainScreenH;
+        grains_to_play.clear();
         for (int i = 0; i < 16; ++i)
         {
             for (int j = 0; j < 4; ++j)
@@ -213,70 +248,79 @@ class XenGranularEngine
                 float density = screendata[j][i] - 65;
                 if (density > 0.0f)
                 {
-                    density = 1.5 * std::pow(density, M_E);
+                    density = std::pow(M_E, density);
                     int numgrains = std::round(density * m_screen_dur);
-                    
                     for (int k = 0; k < numgrains; ++k)
                     {
-                        float panposition = tposdist(m_rng);
-                        sst::basic_blocks::dsp::pan_laws::monoEqualPower(panposition, panmatrix);
-                        float pitch =
-                            juce::jmap<float>(i + tposdist(m_rng), 0.0, 16.0, 24.0, 115.0);
+                        float pitch = juce::jmap<float>(i + unidist(m_rng), 0.0, 16.0, 24.0, 115.0);
                         float hz = 440.0 * std::pow(2.0, 1.0 / 12.0 * (pitch - 69.0));
-                        float graindur = juce::jmap<float>(pitch, 24.0, 104.0, 0.2, 0.025);
+                        float graindur = juce::jmap<float>(pitch, 24.0, 115.0, 0.2, 0.025);
                         int graindursamples = graindur * m_sr;
-                        float tpos = tposdist(m_rng) * (m_screen_dur - graindur);
+                        float tpos = unidist(m_rng) * (m_screen_dur - graindur);
                         int tpossamples = tpos * m_sr;
-                        float volume =
-                            juce::jmap<float>(j + tposdist(m_rng), 0.0, 4.0, -40.0, -6.0);
+                        float volume = juce::jmap<float>(j + unidist(m_rng), 0.0, 4.0, -40.0, -6.0);
                         float gain = juce::Decibels::decibelsToGain(volume);
-                        gain *= 0.5;
-                        for (int sample = tpossamples; sample < tpossamples + graindursamples;
-                             ++sample)
-                        {
-                            if (sample >= screendursamples)
-                                break;
-                            int envpos = sample - tpossamples;
-                            float outsample0 = std::sin(2 * M_PI / m_sr * envpos * hz) * gain;
-                            float outsample1 =
-                                std::sin(2 * M_PI / m_sr * envpos * hz * 2) * gain * 0.25;
-                            float outsample = outsample0 + outsample1;
-                            const float fadepercent = 0.1;
-                            if (envpos < graindursamples * fadepercent)
-                                outsample *= juce::jmap<float>(
-                                    envpos, 0, graindursamples * fadepercent, 0.0, 1.0);
-                            if (envpos > graindursamples * (1.0 - fadepercent))
-                                outsample *=
-                                    juce::jmap<float>(envpos, graindursamples * (1.0 - fadepercent),
-                                                      graindursamples, 1.0, 0.0);
-                            // outsample = std::tanh(outsample);
-                            m_screen_buffer[sample * 2 + 0] += outsample * panmatrix[0];
-                            m_screen_buffer[sample * 2 + 1] += outsample * panmatrix[3];
-                        }
+                        grains_to_play.emplace_back(tpos, graindur, hz, gain, 0);
+                        double panpos = unidist(m_rng);
+                        grains_to_play.back().sr = m_sr;
+                        grains_to_play.back().pan = panpos;
                     }
                 }
             }
         }
     }
+    sst::basic_blocks::dsp::pan_laws::panmatrix_t panmatrix;
+    
     std::mt19937 m_rng{39};
+    float m_blockout_buf[64];
     void processSample(float *outframe)
     {
-        if (m_phase == 0)
+        if (m_screen_phase == 0)
         {
-            renderScreenAudio();
-            std::cout << "rendered new screen...\n";
+            generateScreen();
+            // renderScreenAudio();
+            std::cout << "generated new screen...\n";
         }
-        outframe[0] = m_screen_buffer[m_phase * 2 + 0];
-        outframe[1] = m_screen_buffer[m_phase * 2 + 1];
-        ++m_phase;
-        if (m_phase >= m_sr * m_screen_dur)
-            m_phase = 0;
+        if (m_block_phase == 0)
+        {
+            for (int i = 0; i < m_block_len * 2; ++i)
+                m_blockout_buf[i] = 0.0f;
+            juce::Range<int> blockregion(m_screen_phase, m_screen_phase + m_block_len);
+            for (auto &grain : grains_to_play)
+            {
+                juce::Range<int> grainregion(grain.tpos * m_sr, (grain.tpos + grain.dur) * m_sr);
+                if (blockregion.intersects(grainregion))
+                {
+                    // if (grain.active == false)
+                    {
+                        grain.active = true;
+                        sst::basic_blocks::dsp::pan_laws::monoEqualPower(grain.pan, panmatrix);
+                        for (int i = 0; i < m_block_len; ++i)
+                        {
+                            float os = grain.getSample();
+                            m_blockout_buf[i * 2 + 0] += os * panmatrix[0];
+                            m_blockout_buf[i * 2 + 1] += os * panmatrix[3];
+                        }
+                    }
+                }
+            }
+        }
+        outframe[0] = m_blockout_buf[m_block_phase * 2 + 0];
+        outframe[1] = m_blockout_buf[m_block_phase * 2 + 1];
+        ++m_block_phase;
+        if (m_block_phase == m_block_len)
+            m_block_phase = 0;
+        // outframe[0] = m_screen_buffer[m_screen_phase * 2 + 0];
+        // outframe[1] = m_screen_buffer[m_screen_phase * 2 + 1];
+        ++m_screen_phase;
+        if (m_screen_phase >= m_sr * m_screen_dur)
+            m_screen_phase = 0;
     }
 };
 
 void test_xen_grains()
 {
-    auto writer = makeWavWriter(juce::File("C:\\MusicAudio\\xengrain01.wav"), 2, 44100);
+    auto writer = makeWavWriter(juce::File("C:\\MusicAudio\\xengrain02.wav"), 2, 44100);
     auto eng = std::make_unique<XenGranularEngine>();
     int outlen = 60 * 44100;
     juce::AudioBuffer<float> buf(2, outlen);
