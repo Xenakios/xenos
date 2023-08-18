@@ -155,8 +155,8 @@ const char *grainScreenF[4] = {"AAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAA", "BABABABA
 const char *grainScreenG[4] = {"DDDDAAAAAAAADDDD", "AAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAA",
                                "AAAAAAAFAAAAAAAA"};
 
-const char *grainScreenH[4] = {"AAAAAAAAAAAEAAAA", "AAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAA",
-                               "EEEEEEEEEEEAEEEE"};
+const char *grainScreenH[4] = {"AAAAAAAAAAAEAAAA", "AAAGAAAAAAAAAAAA", "AAAAAAAAAAAAAAAA",
+                               "EEEAEEEEEEEAEEEE"};
 
 struct GrainInfo
 {
@@ -196,7 +196,7 @@ class XenGranularEngine
 {
   public:
     std::vector<GrainInfo> grains_to_play;
-    GrainVoice m_voices[2048];
+
     int m_screen_phase = 0;
     int m_block_phase = 0;
     int m_block_len = 32;
@@ -220,8 +220,13 @@ class XenGranularEngine
     }
     void generateScreen()
     {
+        double minpitch = 24.0;
+        double maxpitch = 115.0;
+        double pitchrange = maxpitch - minpitch;
+        double pitchregionrange = pitchrange / 16.0;
         std::uniform_real_distribution<double> unidist{0.0, 1.0};
         std::uniform_int_distribution<int> screendist{0, 7};
+        std::normal_distribution<double> pitchdist{0.0, 1.0};
         const char **screendata = nullptr;
         int screentouse = screendist(m_rng);
         if (screentouse == 0)
@@ -252,9 +257,10 @@ class XenGranularEngine
                     int numgrains = std::round(density * m_screen_dur);
                     for (int k = 0; k < numgrains; ++k)
                     {
-                        float pitch = juce::jmap<float>(i + unidist(m_rng), 0.0, 16.0, 24.0, 115.0);
+                        float pitch = juce::jmap<float>(i + pitchdist(m_rng) * 0.01, 0.0, 16.0,
+                                                        minpitch, maxpitch);
                         float hz = 440.0 * std::pow(2.0, 1.0 / 12.0 * (pitch - 69.0));
-                        float graindur = juce::jmap<float>(pitch, 24.0, 115.0, 0.2, 0.025);
+                        float graindur = juce::jmap<float>(pitch, minpitch, maxpitch, 0.2, 0.025);
                         int graindursamples = graindur * m_sr;
                         float tpos = unidist(m_rng) * (m_screen_dur - graindur);
                         int tpossamples = tpos * m_sr;
@@ -270,7 +276,7 @@ class XenGranularEngine
         }
     }
     sst::basic_blocks::dsp::pan_laws::panmatrix_t panmatrix;
-    
+
     std::mt19937 m_rng{39};
     float m_blockout_buf[64];
     void processSample(float *outframe)
@@ -278,7 +284,6 @@ class XenGranularEngine
         if (m_screen_phase == 0)
         {
             generateScreen();
-            // renderScreenAudio();
             std::cout << "generated new screen...\n";
         }
         if (m_block_phase == 0)
@@ -291,16 +296,12 @@ class XenGranularEngine
                 juce::Range<int> grainregion(grain.tpos * m_sr, (grain.tpos + grain.dur) * m_sr);
                 if (blockregion.intersects(grainregion))
                 {
-                    // if (grain.active == false)
+                    sst::basic_blocks::dsp::pan_laws::monoEqualPower(grain.pan, panmatrix);
+                    for (int i = 0; i < m_block_len; ++i)
                     {
-                        grain.active = true;
-                        sst::basic_blocks::dsp::pan_laws::monoEqualPower(grain.pan, panmatrix);
-                        for (int i = 0; i < m_block_len; ++i)
-                        {
-                            float os = grain.getSample();
-                            m_blockout_buf[i * 2 + 0] += os * panmatrix[0];
-                            m_blockout_buf[i * 2 + 1] += os * panmatrix[3];
-                        }
+                        float os = grain.getSample();
+                        m_blockout_buf[i * 2 + 0] += os * panmatrix[0];
+                        m_blockout_buf[i * 2 + 1] += os * panmatrix[3];
                     }
                 }
             }
@@ -324,12 +325,13 @@ void test_xen_grains()
     auto eng = std::make_unique<XenGranularEngine>();
     int outlen = 60 * 44100;
     juce::AudioBuffer<float> buf(2, outlen);
+    float gainscaler = juce::Decibels::decibelsToGain(-20.0);
     for (int i = 0; i < outlen; ++i)
     {
         float samples[2];
         eng->processSample(samples);
-        buf.setSample(0, i, (samples[0]));
-        buf.setSample(1, i, (samples[1]));
+        buf.setSample(0, i, std::tanh(gainscaler * samples[0]));
+        buf.setSample(1, i, std::tanh(gainscaler * samples[1]));
     }
     writer->writeFromAudioSampleBuffer(buf, 0, outlen);
 }
