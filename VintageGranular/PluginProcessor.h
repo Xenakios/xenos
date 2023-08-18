@@ -42,7 +42,8 @@ struct GrainInfo
         double dursamples = dur * sr;
         if (phase >= dursamples)
             return 0.0f;
-        float out = std::sin(2 * M_PI / sr * hz * phase);
+        float out = std::sin(2 * M_PI / sr * hz * phase) * 0.6f;
+        //out += std::sin(2 * M_PI / sr * hz * phase * 2) * 0.2f;
         out *= gain;
         double fadelen = dursamples * 0.1;
         if (phase < fadelen)
@@ -74,10 +75,10 @@ class XenGranularEngine
     int m_screen_phase = 0;
     int m_block_phase = 0;
     int m_block_len = 32;
-    double m_screen_dur = 0.5;
+    double m_screen_dur = 1.0;
     double m_sr = 44100.0;
     float panpositions[4][16];
-    int m_cur_screen = 0;
+    std::atomic<int> m_cur_screen{0};
     XenGranularEngine()
     {
         grains_to_play.reserve(16384);
@@ -96,7 +97,7 @@ class XenGranularEngine
     void generateScreen();
 
     sst::basic_blocks::dsp::pan_laws::panmatrix_t panmatrix;
-
+    int m_pitch_distribution_mode = 0;
     std::mt19937 m_rng{39};
     float m_blockout_buf[64];
     std::atomic<bool> grainsReady{false};

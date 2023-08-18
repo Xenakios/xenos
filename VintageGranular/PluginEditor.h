@@ -12,7 +12,7 @@ class AudioPluginAudioProcessorEditor : public juce::AudioProcessorEditor, publi
     //==============================================================================
     void paint(juce::Graphics &) override;
     void resized() override;
-
+    void mouseDown(const juce::MouseEvent& ev) override;
   private:
     // This reference is provided as a quick way for your editor to
     // access the processor object that created it.

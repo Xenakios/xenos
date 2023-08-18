@@ -120,7 +120,7 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
         buffer.clear(i, 0, buffer.getNumSamples());
 
     auto bufs = buffer.getArrayOfWritePointers();
-    float gainscaler = juce::Decibels::decibelsToGain(-96.0);
+    float gainscaler = juce::Decibels::decibelsToGain(-20.0);
     for (int i = 0; i < buffer.getNumSamples(); ++i)
     {
         float outframe[2];
@@ -167,7 +167,7 @@ void XenGranularEngine::generateScreen()
     std::uniform_int_distribution<int> screendist{0, 7};
     std::normal_distribution<double> pitchdist{0.0, 1.0};
     const char **screendata = nullptr;
-    int screentouse = screendist(m_rng);
+    int screentouse = m_cur_screen; //screendist(m_rng);
     if (screentouse == 0)
         screendata = grainScreenA;
     if (screentouse == 1)
@@ -184,7 +184,7 @@ void XenGranularEngine::generateScreen()
         screendata = grainScreenG;
     if (screentouse == 7)
         screendata = grainScreenH;
-    m_cur_screen = screentouse;
+    //m_cur_screen = screentouse;
 
     grains_to_play.clear();
     for (int i = 0; i < 16; ++i)
@@ -198,13 +198,16 @@ void XenGranularEngine::generateScreen()
                 int numgrains = std::round(density * m_screen_dur);
                 for (int k = 0; k < numgrains; ++k)
                 {
-                    float pitch = juce::jmap<float>(i + pitchdist(m_rng) * 0.5, 0.0, 16.0, minpitch,
-                                                    maxpitch);
+                    float pitch = 60.0;
+                    if (m_pitch_distribution_mode == 1)
+                        pitch = juce::jmap<float>(i + pitchdist(m_rng) * 0.5, 0.0, 16.0, minpitch,
+                                          maxpitch);
+                    else
+                        pitch = juce::jmap<float>(i + unidist(m_rng), 0.0, 16.0, minpitch, maxpitch);
                     float hz = 440.0 * std::pow(2.0, 1.0 / 12.0 * (pitch - 69.0));
-                    float graindur = juce::jmap<float>(pitch, minpitch, maxpitch, 0.2, 0.025);
-                    int graindursamples = graindur * m_sr;
+                    float graindur = juce::jmap<float>(pitch, minpitch, maxpitch, 0.1, 0.01);
                     float tpos = unidist(m_rng) * (m_screen_dur - graindur);
-                    int tpossamples = tpos * m_sr;
+                    
                     float volume = juce::jmap<float>(j + unidist(m_rng), 0.0, 4.0, -40.0, -6.0);
                     float gain = juce::Decibels::decibelsToGain(volume);
                     grains_to_play.emplace_back(tpos, graindur, hz, gain, 0);

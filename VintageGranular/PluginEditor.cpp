@@ -8,11 +8,19 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor(AudioPluginAudi
     juce::ignoreUnused(processorRef);
     // Make sure that before the constructor has finished, you've set the
     // editor's size to whatever you need it to be.
-    setSize(900, 500);
-    startTimerHz(20);
+    setSize(1200, 600);
+    startTimerHz(10);
 }
 
 AudioPluginAudioProcessorEditor::~AudioPluginAudioProcessorEditor() {}
+
+void AudioPluginAudioProcessorEditor::mouseDown(const juce::MouseEvent& ev)
+{
+    auto &geng = processorRef.m_geng;
+    int screentouse = geng.m_cur_screen;
+    screentouse = (screentouse+1) % 8;
+    geng.m_cur_screen = screentouse;
+}
 
 //==============================================================================
 void AudioPluginAudioProcessorEditor::paint(juce::Graphics &g)
@@ -29,7 +37,9 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics &g)
     }
 
     char screenchar = geng.m_cur_screen + 65;
-    g.drawText(juce::String(screenchar), 0, 0, 40, 20, juce::Justification::centredLeft);
+    g.drawText(juce::String(geng.m_cur_screen) + " " +
+                   juce::String((int)geng.grains_to_gui_fifo.getUsedSlots()),
+               0, 0, 40, 20, juce::Justification::centredLeft);
     g.setColour(juce::Colours::green);
     for (int i = 0; i < 16; ++i)
     {
