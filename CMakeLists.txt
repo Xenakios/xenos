@@ -53,6 +53,26 @@ juce_add_plugin(${APP_NAME}
     LV2URI "https://github.com/raphaelradna/xenos"
 )
 
+juce_add_plugin(VintageGranular
+    # VERSION ...                               # Set this if the plugin version is different to the project version
+    # ICON_BIG ...                              # ICON_* arguments specify a path to an image file to use as an icon for the Standalone
+    # ICON_SMALL ...
+    # EDITOR_WANTS_KEYBOARD_FOCUS TRUE/FALSE    # Does the editor need keyboard focus?
+    COMPANY_NAME "Raphael Radna"                          
+    IS_SYNTH True                               # Is this a synth or an effect?
+    NEEDS_MIDI_INPUT True                       # Does the plugin need midi input?
+    # NEEDS_MIDI_OUTPUT TRUE/FALSE              # Does the plugin need midi output?
+    IS_MIDI_EFFECT FALSE                        # Is this plugin a MIDI effect?
+    COPY_PLUGIN_AFTER_BUILD TRUE     
+    PLUGIN_MANUFACTURER_CODE xEns         
+    PLUGIN_CODE XNOS
+    FORMATS ${BUILD_TYPES}        
+    PRODUCT_NAME "VintageGranular"
+    BUNDLE_ID "com.xenakios"
+    LV2URI "https://github.com/raphaelradna/xenos"
+)
+
+
 include_directories(
     libs/sst-basic-blocks/include
     libs/tuning-library/include
@@ -72,6 +92,12 @@ target_sources(${APP_NAME} PRIVATE
     libs/MTS-ESP/Client/libMTSClient.cpp
 )
 
+target_sources(VintageGranular PRIVATE
+    VintageGranular/PluginEditor.cpp
+    VintageGranular/PluginProcessor.cpp
+    libs/MTS-ESP/Client/libMTSClient.cpp
+)
+
 juce_add_binary_data(GuiAppData
 SOURCES
 Resources/background.png
@@ -80,6 +106,17 @@ Resources/background.png
 add_subdirectory (libs/foleys_gui_magic/modules)
 
 target_link_libraries(${APP_NAME} PRIVATE
+    GuiAppData
+    juce::juce_audio_utils
+    juce::juce_dsp
+    foleys_gui_magic
+PUBLIC
+    juce::juce_recommended_config_flags
+    # juce::juce_recommended_lto_flags
+    juce::juce_recommended_warning_flags
+)
+
+target_link_libraries(VintageGranular PRIVATE
     GuiAppData
     juce::juce_audio_utils
     juce::juce_dsp
@@ -107,6 +144,23 @@ JUCE_DONT_DECLARE_PROJECTINFO=1
 JUCE_TARGET_HAS_BINARY_DATA=1
 _USE_MATH_DEFINES=1
 )
+
+target_compile_definitions(VintageGranular PUBLIC
+# JUCE_WEB_BROWSER and JUCE_USE_CURL would be on by default, but you might not need them.
+JUCE_WEB_BROWSER=0                          # If you remove this, add `NEEDS_WEB_BROWSER TRUE` to the `juce_add_gui_app` call
+JUCE_USE_CURL=0                             # If you remove this, add `NEEDS_CURL TRUE` to the `juce_add_gui_app` call
+JUCE_APPLICATION_NAME_STRING="$<TARGET_PROPERTY:${APP_NAME},JUCE_PROJECT_NAME>"
+JUCE_APPLICATION_VERSION_STRING="$<TARGET_PROPERTY:${APP_NAME},JUCE_VERSION>"
+JUCE_DISPLAY_SPLASH_SCREEN=0
+JUCE_STRICT_REFCOUNTEDPOINTER=1
+JUCE_VST3_CAN_REPLACE_VST2=0                # If true requires vst2 SDK which I don't have so it has to be false
+JUCE_MODAL_LOOPS_PERMITTED=1
+DONT_SET_USING_JUCE_NAMESPACE=1
+JUCE_DONT_DECLARE_PROJECTINFO=1
+JUCE_TARGET_HAS_BINARY_DATA=1
+_USE_MATH_DEFINES=1
+)
+
 
 set_target_properties(${APP_NAME} PROPERTIES
 BUILD_WITH_INSTALL_RPATH 1
