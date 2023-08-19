@@ -278,12 +278,18 @@ class XenGrainStream
         m_stop_requested = false;
     }
     bool m_stop_requested = false;
-    void stopStream() { m_stop_requested = true; }
+    void stopStream()
+    { 
+        m_stop_requested = true; 
+        m_stop_fade_counter = 0;
+    }
+    int m_stop_fade_counter = 0;
     float getSample()
     {
-        if (m_grain_rate < 0.1)
+        const int fadelen = 16384;
+        if (m_grain_rate < 0.1 || m_stop_fade_counter >= fadelen)
             return 0.0f;
-        if (m_phase >= m_next_grain_time)
+        if (!m_stop_requested && m_phase >= m_next_grain_time)
         {
             for (auto &v : m_voices)
             {
@@ -307,10 +313,27 @@ class XenGrainStream
                 ++activevoices;
             }
         }
+        if (m_stop_requested)
+        {
+            ++m_stop_fade_counter;
+            float fadegain = 1.0-1.0/fadelen*m_stop_fade_counter;
+            voicesum *= fadegain;
+        }
+        if (m_stop_fade_counter == fadelen)
+        {
+            for(auto& v : m_voices)
+                v.m_active = false;
+            m_grain_rate = 0.0;
+            std::cout << "quick stopped voices for " << "\n";
+        }
+        /*
         if (activevoices == 0 && m_stop_requested)
         {
             m_grain_rate = 0.0;
+            //std::cout << "no more active voices for " << this << "\n";
+            m_stop_requested = false;
         }
+        */
         m_phase += 1.0;
         return voicesum;
     }
@@ -325,6 +348,7 @@ class XenVintageGranular
     double m_sr = 44100.0;
     XenVintageGranular(std::mt19937 &rng) : m_rng(rng)
     {
+        /*
         m_streams[0].m_min_pitch = 24.0;
         m_streams[0].m_max_pitch = 48.0;
         m_streams[0].m_min_volume = -12.0;
@@ -345,18 +369,60 @@ class XenVintageGranular
         m_streams[2].m_max_volume = -20.0;
         m_streams[2].setGrainRate(32.0);
         m_streams[2].setGrainDuration(0.06);
+        */
     }
     std::mt19937 &m_rng;
+    void updateStreams()
+    {
+        // cancel all previous streams
+        for (auto &stream : m_streams)
+        {
+            stream.stopStream();
+        }
+        std::uniform_int_distribution<int> screendist{0, 7};
+        int screentouse = screendist(m_rng);
+        const char **screendatas[8] = {grainScreenA, grainScreenB, grainScreenC, grainScreenD,
+                                       grainScreenE, grainScreenF, grainScreenG, grainScreenH};
+        const char **screendata = screendatas[screentouse];
+        for (int i = 0; i < 16; ++i)
+        {
+            for (int j = 0; j < 4; ++j)
+            {
+
+                float density = screendata[3 - j][i] - 65;
+                if (density > 0.0)
+                {
+                    density = std::pow(M_E, density);
+                    // hopefully find available stream...
+                    bool streamfound = false;
+                    for (auto &stream : m_streams)
+                    {
+                        if (stream.m_grain_rate < 0.1)
+                        {
+                            float pitchwidth = (115.0 - 24.0) / 16;
+                            float minpitch = 24.0 + (i * pitchwidth);
+                            float maxpitch = 24.0 + ((i + 1) * pitchwidth);
+                            float volwidth = 40.0 / 4;
+                            float minvol = -40.0 + volwidth * j;
+                            float maxvol = -40.0 + volwidth * (j + 1);
+                            stream.startStream(density, minpitch, maxpitch, minvol, maxvol, 0.05,
+                                               0.05);
+                            streamfound = true;
+                            break;
+                        }
+                    }
+                    if (!streamfound)
+                        std::cout << "could not find grain stream to start\n";
+                }
+            }
+        }
+    }
     void process(float *outframe)
     {
         if (m_phase == 0.0)
         {
-            std::uniform_real_distribution<float> pitchdist{24.0f, 110.0f};
-            for (auto &stream : m_streams)
-            {
-                stream.m_min_pitch = pitchdist(m_rng);
-                stream.m_max_pitch = stream.m_min_pitch + 6.0;
-            }
+            std::cout << "updating streams\n";
+            updateStreams();
         }
         outframe[0] = 0.0f;
         outframe[1] = 0.0f;
@@ -367,7 +433,7 @@ class XenVintageGranular
             outframe[1] += out;
         }
         m_phase += 1.0;
-        if (m_phase >= m_sr * 1.0)
+        if (m_phase >= m_sr * 0.5)
             m_phase = 0.0;
     }
     double m_phase = 0.0;
