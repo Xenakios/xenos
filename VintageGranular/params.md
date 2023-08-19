@@ -1,0 +1,14 @@
+- Pitch minimum limit (semitones/octaves)
+- Pitch maximum limit (same)
+- Pitch random distribution (uniform, Gauss, Cauchy...)
+- Pitch random distribution parameter
+- Pitch warp X
+- Pitch warp Y
+- Volume minimum limit (decibels)
+- Volume maximum limit (decibels)
+- Master volume (decibels)
+- Density multiply
+- Grain duration multiply
+- Grain envelope shape
+- Grain waveform X
+- Grain waveform Y
