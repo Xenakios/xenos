@@ -14,11 +14,11 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor(AudioPluginAudi
 
 AudioPluginAudioProcessorEditor::~AudioPluginAudioProcessorEditor() {}
 
-void AudioPluginAudioProcessorEditor::mouseDown(const juce::MouseEvent& ev)
+void AudioPluginAudioProcessorEditor::mouseDown(const juce::MouseEvent &ev)
 {
     auto &geng = processorRef.m_geng;
     int screentouse = geng.m_cur_screen;
-    screentouse = (screentouse+1) % 8;
+    screentouse = (screentouse + 1) % 8;
     geng.m_cur_screen = screentouse;
 }
 
@@ -36,11 +36,14 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics &g)
         g.fillEllipse(xcor, ycor, 3, 3);
     }
 
-    char screenchar = geng.m_cur_screen + 65;
     g.drawText(juce::String(geng.m_cur_screen) + " " +
                    juce::String((int)geng.grains_to_gui_fifo.getUsedSlots()),
-               0, 0, 40, 20, juce::Justification::centredLeft);
+               0, 0, 150, 20, juce::Justification::centredLeft);
     g.setColour(juce::Colours::green);
+    double cpuload = processorRef.m_cpu_load.getLoadAsProportion();
+    cpuload = juce::jmap<double>(cpuload, 0.0, 1.0, 0, 500);
+    g.drawRect(50,1,500,15);
+    g.fillRect(50,1,cpuload,15);
     for (int i = 0; i < 16; ++i)
     {
         g.drawLine(getWidth() / 16.0 * i, 20.0, getWidth() / 16.0 * i, getHeight());
