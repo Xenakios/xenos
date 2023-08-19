@@ -118,7 +118,7 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
         buffer.clear(i, 0, buffer.getNumSamples());
 
     auto bufs = buffer.getArrayOfWritePointers();
-    float gainscaler = juce::Decibels::decibelsToGain(-20.0);
+    float gainscaler = juce::Decibels::decibelsToGain(-50.0);
     for (int i = 0; i < buffer.getNumSamples(); ++i)
     {
         float outframe[2];
@@ -132,6 +132,7 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
 bool AudioPluginAudioProcessor::hasEditor() const
 {
     return true; // (change this to false if you choose to not supply an editor)
+    
 }
 
 juce::AudioProcessorEditor *AudioPluginAudioProcessor::createEditor()
@@ -204,10 +205,11 @@ void XenGranularEngine::generateScreen()
                         pitch =
                             juce::jmap<float>(i + unidist(m_rng), 0.0, 16.0, minpitch, maxpitch);
                     float hz = 440.0 * std::pow(2.0, 1.0 / 12.0 * (pitch - 69.0));
-                    float graindur = juce::jmap<float>(pitch, minpitch, maxpitch, 0.1, 0.01);
+                    // float graindur = juce::jmap<float>(pitch, minpitch, maxpitch, 0.1, 0.01);
+                    float graindur = juce::jmap<float>(unidist(m_rng), 0.0f, 1.0f, 0.025, 0.3);
                     float tpos = unidist(m_rng) * (m_screen_dur - graindur);
 
-                    float volume = juce::jmap<float>(j + unidist(m_rng), 0.0, 4.0, -40.0, -6.0);
+                    float volume = juce::jmap<float>(j + unidist(m_rng), 0.0, 4.0, -36.0, 12.0);
                     float gain = juce::Decibels::decibelsToGain(volume);
                     grains_to_play.emplace_back(tpos, graindur, hz, gain, 0);
                     double panpos = unidist(m_rng);

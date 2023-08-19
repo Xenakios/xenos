@@ -29,6 +29,15 @@ static const char *grainScreenG[4] = {"DDDDAAAAAAAADDDD", "AAAAAAAAAAAAAAAA", "A
 static const char *grainScreenH[4] = {"AAAAAAAAAAAEAAAA", "AAAGAAAAAAAAAAAA", "AAAAAAAAAAAAAAAA",
                                       "EEEAEEEEEEEAEEEE"};
 
+inline float softClip(float x)
+{
+    if (x <= -1.0f)
+        return -2.0f / 3.0f;
+    if (x >= 1.0f)
+        return 2.0f / 3.0f;
+    return x - std::pow(x, 3.0f) / 3.0f;
+}
+
 struct GrainInfo
 {
     GrainInfo() {}
@@ -42,14 +51,15 @@ struct GrainInfo
         double dursamples = dur * sr;
         if (phase >= dursamples)
             return 0.0f;
-        float out = std::sin(2 * M_PI / sr * hz * phase) * 0.6f;
-        out += std::sin(2 * M_PI / sr * hz * phase * 2) * 0.2f;
+        float out = std::sin(2 * M_PI / sr * hz * phase) * 1.0f;
+        // out += std::sin(2 * M_PI / sr * hz * phase * 2) * 0.2f;
         out *= gain;
         double fadelen = dursamples * 0.1;
         if (phase < fadelen)
             out *= juce::jmap<double>(phase, 0.0, fadelen, 0.0, 1.0);
         if (phase >= dursamples - fadelen)
             out *= juce::jmap<double>(phase, dursamples - fadelen, dursamples, 1.0, 0.0);
+        out = softClip(out);
         phase += 1.0;
         return out;
     }
@@ -188,8 +198,8 @@ class AudioPluginAudioProcessor : public juce::AudioProcessor
     void setStateInformation(const void *data, int sizeInBytes) override;
     XenGranularEngine m_geng;
     juce::AudioProcessLoadMeasurer m_cpu_load;
+
   private:
-    
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AudioPluginAudioProcessor)
 };

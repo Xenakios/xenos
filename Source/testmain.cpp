@@ -193,6 +193,156 @@ struct GrainInfo
     double pan = 0.5;
 };
 
+class XenGrainVoice
+{
+  public:
+    XenGrainVoice() {}
+    void startGrain(float samplerate, float hz, float gain, float duration)
+    {
+        if (m_active)
+            return;
+        m_phase = 0.0;
+        m_sr = samplerate;
+        m_dur = duration;
+        m_hz = hz;
+        m_gain = gain;
+        m_active = true;
+    }
+    float getSample()
+    {
+        float out = std::sin(2 * M_PI / m_sr * m_hz * m_phase);
+        out *= m_gain;
+        double dursamples = m_dur * m_sr;
+        double fadelen = dursamples * 0.1;
+        if (m_phase < fadelen)
+            out *= jmap<double>(m_phase, 0.0, fadelen, 0.0, 1.0);
+        if (m_phase >= dursamples - fadelen)
+            out *= jmap<double>(m_phase, dursamples - fadelen, dursamples, 1.0, 0.0);
+        m_phase += 1.0;
+        if (m_phase > dursamples)
+            m_active = false;
+        return out;
+    }
+    bool m_active = false;
+    float m_hz = 440.0f;
+    float m_gain = 0.5f;
+    float m_dur = 0.1;
+    float m_sr = 44100.0f;
+    double m_phase = 0.0;
+};
+
+class XenGrainStream
+{
+  public:
+    std::mt19937 m_rng;
+    std::array<XenGrainVoice, 16> m_voices;
+    double m_grain_rate = 0.0;
+    double m_min_pitch = 24.0;
+    double m_max_pitch = 100.0;
+    double m_min_volume = -40.0;
+    double m_max_volume = 0.0;
+    double m_sr = 44100.0;
+    double m_grain_dur = 0.05;
+    XenGrainStream() {}
+    void setGrainRate(float hz) { m_grain_rate = hz; }
+    void setStreamDuration(float seconds) {}
+    void setPitchLimitsSemitones(float minsemi, float maxsemi)
+    {
+        m_min_pitch = minsemi;
+        m_max_pitch = maxsemi;
+    }
+    void setGrainDuration(double secs)
+    {
+        m_grain_dur = secs;
+    }
+    void setVolumeLimitsDecibels(float minvol, float maxvol)
+    {
+        m_min_volume = minvol;
+        m_max_volume = maxvol;
+    }
+    void initVoice(XenGrainVoice &v)
+    {
+        std::uniform_real_distribution<float> dist{0.0f, 1.0f};
+        float pitch = juce::jmap<float>(dist(m_rng), 0.0f, 1.0f, m_min_pitch, m_max_pitch);
+        float hz = 440.0 * std::pow(2.0f, 1.0 / 12 * (pitch - 69.0));
+        float vol = juce::jmap<float>(dist(m_rng), 0.0f, 1.0f, m_min_volume, m_max_volume);
+        float gain = juce::Decibels::decibelsToGain(vol);
+        v.startGrain(m_sr, hz, gain, m_grain_dur);
+    }
+    float getSample()
+    {
+        if (m_grain_rate < 0.1)
+            return 0.0f;
+        if (m_phase >= m_next_grain_time)
+        {
+            for (auto &v : m_voices)
+            {
+                if (v.m_active == false)
+                {
+                    initVoice(v);
+                    break;
+                }
+            }
+            std::exponential_distribution<float> expdist(m_grain_rate);
+            m_next_grain_time = m_phase + expdist(m_rng) * m_sr;
+            // m_next_grain_time = m_phase + ((1.0 / m_grain_rate) * m_sr);
+        }
+        float voicesum = 0.0f;
+        for (auto &v : m_voices)
+        {
+            if (v.m_active)
+            {
+                voicesum += v.getSample();
+            }
+        }
+        m_phase += 1.0;
+        return voicesum;
+    }
+    double m_phase = 0;
+    double m_next_grain_time = 0;
+};
+
+class XenVintageGranular
+{
+  public:
+    std::array<XenGrainStream, 16> m_streams;
+    XenVintageGranular()
+    {
+        m_streams[0].m_min_pitch = 24.0;
+        m_streams[0].m_max_pitch = 48.0;
+        m_streams[0].m_min_volume = -12.0;
+        m_streams[0].m_max_volume = -6.0;
+        m_streams[0].setGrainRate(4.0);
+        m_streams[0].setGrainDuration(0.1);
+
+        m_streams[1].m_min_pitch = 80.0;
+        m_streams[1].m_max_pitch = 92.0;
+        m_streams[1].m_min_volume = -36.0;
+        m_streams[1].m_max_volume = -30.0;
+        m_streams[1].setGrainRate(8.0);
+        m_streams[1].setGrainDuration(0.03);
+
+        m_streams[2].m_min_pitch = 60.0;
+        m_streams[2].m_max_pitch = 72.0;
+        m_streams[2].m_min_volume = -24.0;
+        m_streams[2].m_max_volume = -20.0;
+        m_streams[2].setGrainRate(32.0);
+        m_streams[2].setGrainDuration(0.06);
+
+    }
+    void process(float *outframe)
+    {
+        outframe[0] = 0.0f;
+        outframe[1] = 0.0f;
+        for (auto &stream : m_streams)
+        {
+            float out = stream.getSample();
+            outframe[0] += out;
+            outframe[1] += out;
+        }
+    }
+};
+
 class XenGranularEngine
 {
   public:
@@ -329,7 +479,8 @@ void test_xen_grains()
     int outlen = 60 * 44100;
     juce::AudioBuffer<float> buf(2, outlen);
     float gainscaler = juce::Decibels::decibelsToGain(-20.0);
-    auto shaper = sst::waveshapers::GetQuadWaveshaper(sst::waveshapers::WaveshaperType::wst_singlefold);
+    auto shaper =
+        sst::waveshapers::GetQuadWaveshaper(sst::waveshapers::WaveshaperType::wst_singlefold);
     sst::waveshapers::QuadWaveshaperState shaperstateL;
     shaperstateL.init = _mm_cmpneq_ps(_mm_setzero_ps(), _mm_setzero_ps());
     sst::waveshapers::QuadWaveshaperState shaperstateR;
@@ -338,12 +489,30 @@ void test_xen_grains()
     {
         float samples[2];
         eng->processSample(samples);
-        
+
         buf.setSample(0, i, std::tanh(gainscaler * samples[0]));
         buf.setSample(1, i, std::tanh(gainscaler * samples[1]));
     }
     writer->writeFromAudioSampleBuffer(buf, 0, outlen);
     std::cout << eng->maxGrainsActive << " grains at most were generated\n";
+}
+
+void test_vintage_grains()
+{
+    auto writer = makeWavWriter(juce::File("C:\\MusicAudio\\xenvintagegrain01.wav"), 2, 44100);
+    auto eng = std::make_unique<XenVintageGranular>();
+    int outlen = 10 * 44100;
+    juce::AudioBuffer<float> buf(2, outlen);
+    float gainscaler = juce::Decibels::decibelsToGain(-20.0);
+    for (int i = 0; i < outlen; ++i)
+    {
+        float samples[2];
+        eng->process(samples);
+
+        buf.setSample(0, i, gainscaler * samples[0]);
+        buf.setSample(1, i, gainscaler * samples[1]);
+    }
+    writer->writeFromAudioSampleBuffer(buf, 0, outlen);
 }
 
 int main()
@@ -352,6 +521,7 @@ int main()
     // test_xenoscore();
     // test_shadowing();
     // test_dropped_samples();
-    test_xen_grains();
+    // test_xen_grains();
+    test_vintage_grains();
     return 0;
 }

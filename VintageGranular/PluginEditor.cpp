@@ -32,8 +32,8 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics &g)
     while (geng.grains_to_gui_fifo.pop(grain))
     {
         double xcor = juce::jmap<double>(grain.pitch, 24.0, 115.0, 0, getWidth());
-        double ycor = juce::jmap<double>(grain.volume, -40, -6.0, getHeight(), 20);
-        g.fillEllipse(xcor, ycor, 3, 3);
+        double ycor = juce::jmap<double>(grain.volume, -36.0, 12.0, getHeight(), 20);
+        g.fillEllipse(xcor, ycor, 5, 5);
     }
 
     g.drawText(juce::String(geng.m_cur_screen) + " " +
