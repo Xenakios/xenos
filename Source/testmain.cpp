@@ -251,10 +251,7 @@ class XenGrainStream
         m_min_pitch = minsemi;
         m_max_pitch = maxsemi;
     }
-    void setGrainDuration(double secs)
-    {
-        m_grain_dur = secs;
-    }
+    void setGrainDuration(double secs) { m_grain_dur = secs; }
     void setVolumeLimitsDecibels(float minvol, float maxvol)
     {
         m_min_volume = minvol;
@@ -269,6 +266,19 @@ class XenGrainStream
         float gain = juce::Decibels::decibelsToGain(vol);
         v.startGrain(m_sr, hz, gain, m_grain_dur);
     }
+    void startStream(float rate, float minpitch, float maxpitch, float minvolume, float maxvolume,
+                     float mingraindur, float maxgraindur)
+    {
+        m_grain_rate = rate;
+        m_min_pitch = minpitch;
+        m_max_pitch = maxpitch;
+        m_min_volume = minvolume;
+        m_max_volume = maxvolume;
+        m_grain_dur = mingraindur;
+        m_stop_requested = false;
+    }
+    bool m_stop_requested = false;
+    void stopStream() { m_stop_requested = true; }
     float getSample()
     {
         if (m_grain_rate < 0.1)
@@ -288,12 +298,18 @@ class XenGrainStream
             // m_next_grain_time = m_phase + ((1.0 / m_grain_rate) * m_sr);
         }
         float voicesum = 0.0f;
+        int activevoices = 0;
         for (auto &v : m_voices)
         {
             if (v.m_active)
             {
                 voicesum += v.getSample();
+                ++activevoices;
             }
+        }
+        if (activevoices == 0 && m_stop_requested)
+        {
+            m_grain_rate = 0.0;
         }
         m_phase += 1.0;
         return voicesum;
@@ -306,7 +322,8 @@ class XenVintageGranular
 {
   public:
     std::array<XenGrainStream, 16> m_streams;
-    XenVintageGranular()
+    double m_sr = 44100.0;
+    XenVintageGranular(std::mt19937 &rng) : m_rng(rng)
     {
         m_streams[0].m_min_pitch = 24.0;
         m_streams[0].m_max_pitch = 48.0;
@@ -328,10 +345,19 @@ class XenVintageGranular
         m_streams[2].m_max_volume = -20.0;
         m_streams[2].setGrainRate(32.0);
         m_streams[2].setGrainDuration(0.06);
-
     }
+    std::mt19937 &m_rng;
     void process(float *outframe)
     {
+        if (m_phase == 0.0)
+        {
+            std::uniform_real_distribution<float> pitchdist{24.0f, 110.0f};
+            for (auto &stream : m_streams)
+            {
+                stream.m_min_pitch = pitchdist(m_rng);
+                stream.m_max_pitch = stream.m_min_pitch + 6.0;
+            }
+        }
         outframe[0] = 0.0f;
         outframe[1] = 0.0f;
         for (auto &stream : m_streams)
@@ -340,8 +366,31 @@ class XenVintageGranular
             outframe[0] += out;
             outframe[1] += out;
         }
+        m_phase += 1.0;
+        if (m_phase >= m_sr * 1.0)
+            m_phase = 0.0;
     }
+    double m_phase = 0.0;
 };
+
+void test_vintage_grains()
+{
+    std::mt19937 rng;
+    auto writer = makeWavWriter(juce::File("C:\\MusicAudio\\xenvintagegrain01.wav"), 2, 44100);
+    auto eng = std::make_unique<XenVintageGranular>(rng);
+    int outlen = 60 * 44100;
+    juce::AudioBuffer<float> buf(2, outlen);
+    float gainscaler = juce::Decibels::decibelsToGain(-20.0);
+    for (int i = 0; i < outlen; ++i)
+    {
+        float samples[2];
+        eng->process(samples);
+
+        buf.setSample(0, i, gainscaler * samples[0]);
+        buf.setSample(1, i, gainscaler * samples[1]);
+    }
+    writer->writeFromAudioSampleBuffer(buf, 0, outlen);
+}
 
 class XenGranularEngine
 {
@@ -495,24 +544,6 @@ void test_xen_grains()
     }
     writer->writeFromAudioSampleBuffer(buf, 0, outlen);
     std::cout << eng->maxGrainsActive << " grains at most were generated\n";
-}
-
-void test_vintage_grains()
-{
-    auto writer = makeWavWriter(juce::File("C:\\MusicAudio\\xenvintagegrain01.wav"), 2, 44100);
-    auto eng = std::make_unique<XenVintageGranular>();
-    int outlen = 10 * 44100;
-    juce::AudioBuffer<float> buf(2, outlen);
-    float gainscaler = juce::Decibels::decibelsToGain(-20.0);
-    for (int i = 0; i < outlen; ++i)
-    {
-        float samples[2];
-        eng->process(samples);
-
-        buf.setSample(0, i, gainscaler * samples[0]);
-        buf.setSample(1, i, gainscaler * samples[1]);
-    }
-    writer->writeFromAudioSampleBuffer(buf, 0, outlen);
 }
 
 int main()
