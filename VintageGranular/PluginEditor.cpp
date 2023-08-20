@@ -16,7 +16,7 @@ AudioPluginAudioProcessorEditor::~AudioPluginAudioProcessorEditor() {}
 
 void AudioPluginAudioProcessorEditor::mouseDown(const juce::MouseEvent &ev)
 {
-    auto &geng = processorRef.m_geng;
+    auto &geng = processorRef.m_eng;
     int screentouse = geng.m_cur_screen;
     screentouse = (screentouse + 1) % 8;
     geng.m_cur_screen = screentouse;
@@ -25,19 +25,20 @@ void AudioPluginAudioProcessorEditor::mouseDown(const juce::MouseEvent &ev)
 //==============================================================================
 void AudioPluginAudioProcessorEditor::paint(juce::Graphics &g)
 {
-    auto &geng = processorRef.m_geng;
+    auto &geng = processorRef.m_eng;
     g.fillAll(juce::Colours::black);
     g.setColour(juce::Colours::white);
-    GrainInfo grain;
-    while (geng.grains_to_gui_fifo.pop(grain))
+    
+    GrainVisualizationInfo grain;
+    while (geng.m_grains_to_gui_fifo.pop(grain))
     {
         double xcor = juce::jmap<double>(grain.pitch, 24.0, 115.0, 0, getWidth());
         double ycor = juce::jmap<double>(grain.volume, -36.0, 12.0, getHeight(), 20);
         g.fillEllipse(xcor, ycor, 5, 5);
     }
-
+    
     g.drawText(juce::String(geng.m_cur_screen) + " " +
-                   juce::String((int)geng.grains_to_gui_fifo.getUsedSlots()),
+                   juce::String((int)geng.m_grains_to_gui_fifo.getUsedSlots()),
                0, 0, 150, 20, juce::Justification::centredLeft);
     g.setColour(juce::Colours::green);
     double cpuload = processorRef.m_cpu_load.getLoadAsProportion();

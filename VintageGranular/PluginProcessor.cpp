@@ -73,6 +73,7 @@ void AudioPluginAudioProcessor::changeProgramName(int index, const juce::String 
 void AudioPluginAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
     m_cpu_load.reset(sampleRate, samplesPerBlock);
+    m_eng.setSampleRate(sampleRate);
 }
 
 void AudioPluginAudioProcessor::releaseResources()
@@ -118,11 +119,11 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
         buffer.clear(i, 0, buffer.getNumSamples());
 
     auto bufs = buffer.getArrayOfWritePointers();
-    float gainscaler = juce::Decibels::decibelsToGain(-50.0);
+    float gainscaler = juce::Decibels::decibelsToGain(-30.0);
     for (int i = 0; i < buffer.getNumSamples(); ++i)
     {
         float outframe[2];
-        m_geng.processSample(outframe);
+        m_eng.process(outframe);
         bufs[0][i] = outframe[0] * gainscaler;
         bufs[1][i] = outframe[1] * gainscaler;
     }
@@ -156,74 +157,6 @@ void AudioPluginAudioProcessor::setStateInformation(const void *data, int sizeIn
     juce::ignoreUnused(data, sizeInBytes);
 }
 
-void XenGranularEngine::generateScreen()
-{
-    double minpitch = 24.0;
-    double maxpitch = 115.0;
-    double pitchrange = maxpitch - minpitch;
-    double pitchregionrange = pitchrange / 16.0;
-    std::uniform_real_distribution<double> unidist{0.0, 1.0};
-    std::uniform_int_distribution<int> screendist{0, 7};
-    std::normal_distribution<double> pitchdist{0.0, 1.0};
-    const char **screendata = nullptr;
-    int screentouse = m_cur_screen; // screendist(m_rng);
-    if (screentouse == 0)
-        screendata = grainScreenA;
-    if (screentouse == 1)
-        screendata = grainScreenB;
-    if (screentouse == 2)
-        screendata = grainScreenC;
-    if (screentouse == 3)
-        screendata = grainScreenD;
-    if (screentouse == 4)
-        screendata = grainScreenE;
-    if (screentouse == 5)
-        screendata = grainScreenF;
-    if (screentouse == 6)
-        screendata = grainScreenG;
-    if (screentouse == 7)
-        screendata = grainScreenH;
-    // m_cur_screen = screentouse;
-
-    grains_to_play.clear();
-    for (int i = 0; i < 16; ++i)
-    {
-        for (int j = 0; j < 4; ++j)
-        {
-            float density = screendata[3 - j][i] - 65;
-            if (density > 0.0f)
-            {
-                density = std::pow(M_E, density);
-                int numgrains = std::round(density * m_screen_dur);
-                for (int k = 0; k < numgrains; ++k)
-                {
-                    float pitch = 60.0;
-                    if (m_pitch_distribution_mode == 1)
-                        pitch = juce::jmap<float>(i + pitchdist(m_rng) * 0.5, 0.0, 16.0, minpitch,
-                                                  maxpitch);
-                    else
-                        pitch =
-                            juce::jmap<float>(i + unidist(m_rng), 0.0, 16.0, minpitch, maxpitch);
-                    float hz = 440.0 * std::pow(2.0, 1.0 / 12.0 * (pitch - 69.0));
-                    // float graindur = juce::jmap<float>(pitch, minpitch, maxpitch, 0.1, 0.01);
-                    float graindur = juce::jmap<float>(unidist(m_rng), 0.0f, 1.0f, 0.025, 0.3);
-                    float tpos = unidist(m_rng) * (m_screen_dur - graindur);
-
-                    float volume = juce::jmap<float>(j + unidist(m_rng), 0.0, 4.0, -36.0, 12.0);
-                    float gain = juce::Decibels::decibelsToGain(volume);
-                    grains_to_play.emplace_back(tpos, graindur, hz, gain, 0);
-                    double panpos = unidist(m_rng);
-                    grains_to_play.back().sr = m_sr;
-                    grains_to_play.back().pan = panpos;
-                    grains_to_play.back().pitch = pitch;
-                    grains_to_play.back().volume = volume;
-                }
-            }
-        }
-    }
-
-    maxGrainsActive = std::max(maxGrainsActive, (int)grains_to_play.size());
-}
 
 //==============================================================================
 // This creates new instances of the plugin..

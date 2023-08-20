@@ -1,6 +1,6 @@
 #pragma once
 
-#include <JuceHeader.h>
+#include <juce_audio_processors/juce_audio_processors.h>
 #include "Tunings.h"
 #include <random>
 #include "sst/basic-blocks/dsp/PanLaws.h"
@@ -67,9 +67,9 @@ class XenGrainVoice
         double dursamples = m_dur * m_sr;
         double fadelen = dursamples * 0.1;
         if (m_phase < fadelen)
-            out *= jmap<double>(m_phase, 0.0, fadelen, 0.0, 1.0);
+            out *= juce::jmap<double>(m_phase, 0.0, fadelen, 0.0, 1.0);
         if (m_phase >= dursamples - fadelen)
-            out *= jmap<double>(m_phase, dursamples - fadelen, dursamples, 1.0, 0.0);
+            out *= juce::jmap<double>(m_phase, dursamples - fadelen, dursamples, 1.0, 0.0);
         m_phase += 1.0;
         if (m_phase > dursamples)
             m_active = false;
@@ -83,6 +83,18 @@ class XenGrainVoice
     float m_sr = 44100.0f;
     double m_phase = 0.0;
 };
+
+class GrainVisualizationInfo
+{
+public:
+    GrainVisualizationInfo() {}
+    GrainVisualizationInfo(double pitch_, double volume_) :
+        pitch(pitch_), volume(volume_) {}
+    double pitch = 0.0;
+    double volume = 0.0;
+};
+
+using VisualizerFifoType = choc::fifo::SingleReaderSingleWriterFIFO<GrainVisualizationInfo>;
 
 class XenGrainStream
 {
@@ -99,7 +111,7 @@ class XenGrainStream
     std::array<XenGrainVoice, 16> m_voices;
 
     double m_sr = 44100.0;
-
+    VisualizerFifoType* m_grains_to_gui_fifo = nullptr;
     XenGrainStream()
     {
         m_rng = std::minstd_rand0((unsigned int)this);
@@ -140,6 +152,8 @@ class XenGrainStream
         float gain = juce::Decibels::decibelsToGain(vol);
         float pan = dist(m_rng);
         v.startGrain(m_sr, hz, gain, m_grain_dur, pan);
+        if (m_grains_to_gui_fifo)
+            m_grains_to_gui_fifo->push({pitch,vol});
     }
     juce::ADSR m_adsr;
     void startStream(float rate, float minpitch, float maxpitch, float minvolume, float maxvolume,
@@ -216,19 +230,24 @@ class XenGrainStream
 
 class XenVintageGranular
 {
+    double m_sr = 44100.0;
   public:
     std::array<XenGrainStream, 20> m_streams;
-    double m_sr = 44100.0;
+    VisualizerFifoType m_grains_to_gui_fifo;
     float m_screensdata[8][16][4];
     int m_maxscreen = 0;
     Tunings::Tuning m_tuning;
-    XenVintageGranular(std::mt19937 &rng) : m_rng(rng)
+    std::atomic<int> m_cur_screen;
+    XenVintageGranular(int seed) 
     {
+        m_grains_to_gui_fifo.reset(16384);
+        m_rng = std::mt19937(seed);
         m_tuning = Tunings::evenDivisionOfCentsByM(1200.0, 7);
         for (int i = 0; i < m_streams.size(); ++i)
         {
             m_streams[i].m_stream_id = i;
             m_streams[i].m_tuning = &m_tuning;
+            m_streams[i].m_grains_to_gui_fifo = &m_grains_to_gui_fifo;
         }
 
         for (int i = 0; i < 8; ++i)
@@ -265,8 +284,13 @@ class XenVintageGranular
             }
         }
     }
-    std::mt19937 &m_rng;
-
+    std::mt19937 m_rng;
+    void setSampleRate(double sr)
+    {
+        m_sr = sr;
+        m_sr_provider.samplerate = sr;
+        m_sr_provider.initTables();
+    }
     void updateStreams()
     {
         // cancel all previous active streams
@@ -276,6 +300,7 @@ class XenVintageGranular
         }
         std::uniform_int_distribution<int> screendist{0, m_maxscreen - 1};
         int screentouse = screendist(m_rng);
+        m_cur_screen = screentouse;
         for (int i = 0; i < 16; ++i)
         {
             for (int j = 0; j < 4; ++j)
@@ -297,7 +322,7 @@ class XenVintageGranular
                             float volwidth = 40.0 / 4;
                             float minvol = -40.0 + volwidth * j;
                             float maxvol = -40.0 + volwidth * (j + 1);
-                            float graindur = jmap<float>(minpitch, 24.0, 115.0, 0.15, 0.025);
+                            float graindur = juce::jmap<float>(minpitch, 24.0, 115.0, 0.15, 0.025);
                             stream.startStream(density, minpitch, maxpitch, minvol, maxvol,
                                                graindur, 0.05);
                             streamfound = true;
