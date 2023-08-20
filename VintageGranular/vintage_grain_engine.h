@@ -134,14 +134,17 @@ class XenGrainStream
                 pitch = juce::jmap<float>(dist(m_rng), 0.0f, 1.0f, m_min_pitch, m_max_pitch);
 
                 hz = m_tuning->frequencyForMidiNote(pitch);
-                if (hz > 16.0f && hz <= 7000.0)
+                pitch = 12.0 * std::log(hz / 16.0);
+                if (hz > 20.0f && hz <= 7500.0)
                     break;
+                /*
                 ++sanity;
                 if (sanity > 100)
                 {
                     hz = 440.0 * std::pow(2.0f, 1.0 / 12 * (pitch - 69.0));
                     break;
                 }
+                */
             }
         }
 
@@ -242,15 +245,45 @@ class XenVintageGranular
     int m_maxscreen = 0;
     Tunings::Tuning m_tuning;
     std::atomic<int> m_cur_screen{0};
+    float m_min_pitch = 24.0;
+    float m_max_pitch = 115.0;
+    bool m_use_tuning = false;
+    void updatePitchLimits()
+    {
+        if (!m_use_tuning)
+        {
+            m_min_pitch = 24.0;
+            m_max_pitch = 115.0;
+        }
+        else
+        {
+            // ok this is a bit tricky, we need to find a suitable pitch/key range out of the tuning
+            double minhz = 20.0;
+            double maxhz = 7500.0;
+            std::vector<int> foo;
+            foo.reserve(128);
+            for (int i = 0; i < 128; ++i)
+            {
+                double hz = m_tuning.frequencyForMidiNote(i);
+                if (hz >= minhz && hz <= maxhz)
+                    foo.push_back(i);
+            }
+            std::cout << "key range is " << foo.front() << " - " << foo.back() << "\n";
+            m_min_pitch = foo.front();
+            m_max_pitch = foo.back();
+        }
+    }
     XenVintageGranular(int seed)
     {
         m_grains_to_gui_fifo.reset(16384);
         m_rng = std::mt19937(seed);
         m_tuning = Tunings::evenDivisionOfCentsByM(1200.0, 7);
+        updatePitchLimits();
         for (int i = 0; i < m_streams.size(); ++i)
         {
             m_streams[i].m_stream_id = i;
             m_streams[i].m_tuning = &m_tuning;
+            m_streams[i].m_use_tuning = m_use_tuning;
             m_streams[i].m_grains_to_gui_fifo = &m_grains_to_gui_fifo;
         }
 
@@ -320,13 +353,13 @@ class XenVintageGranular
                     {
                         if (stream.isAvailable())
                         {
-                            float pitchwidth = (115.0 - 24.0) / 16;
-                            float minpitch = 24.0 + (i * pitchwidth);
-                            float maxpitch = 24.0 + ((i + 1) * pitchwidth);
+                            float pitchwidth = (m_max_pitch - m_min_pitch) / 16;
+                            float minpitch = m_min_pitch + (i * pitchwidth);
+                            float maxpitch = m_min_pitch + ((i + 1) * pitchwidth);
                             float volwidth = 40.0 / 4;
                             float minvol = -40.0 + volwidth * j;
                             float maxvol = -40.0 + volwidth * (j + 1);
-                            float graindur = juce::jmap<float>(minpitch, 24.0, 115.0, 0.15, 0.025);
+                            float graindur = juce::jmap<float>(minpitch, m_min_pitch, m_max_pitch, 0.15, 0.025);
                             stream.startStream(density, minpitch, maxpitch, minvol, maxvol,
                                                graindur, 0.05, i, j);
                             streamfound = true;
@@ -350,7 +383,7 @@ class XenVintageGranular
         {
             m_lfo0.process_block(2.0, 0.5, LFOType::Shape::SMOOTH_NOISE);
             m_lfo1.process_block(3.0, 0.6, LFOType::Shape::SMOOTH_NOISE);
-            for(auto& stream : m_streams)
+            for (auto &stream : m_streams)
             {
                 stream.m_pitch_mod_amount = 0.0;
                 if (stream.m_screen_x % 2 == 0)
@@ -369,7 +402,7 @@ class XenVintageGranular
         {
             if (!stream.isAvailable())
             {
-                
+
                 stream.processFrame(streamframe);
                 outframe[0] += streamframe[0];
                 outframe[1] += streamframe[1];
