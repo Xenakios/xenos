@@ -28,23 +28,23 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics &g)
     auto &geng = processorRef.m_eng;
     g.fillAll(juce::Colours::black);
     g.setColour(juce::Colours::white);
-    
+
     GrainVisualizationInfo grain;
     while (geng.m_grains_to_gui_fifo.pop(grain))
     {
         double xcor = juce::jmap<double>(grain.pitch, 24.0, 115.0, 0, getWidth());
-        double ycor = juce::jmap<double>(grain.volume, -36.0, 12.0, getHeight(), 20);
+        double ycor = juce::jmap<double>(grain.volume, -40.0, 0.0, getHeight(), 20);
         g.fillEllipse(xcor, ycor, 5, 5);
     }
-    
+
     g.drawText(juce::String(geng.m_cur_screen) + " " +
                    juce::String((int)geng.m_grains_to_gui_fifo.getUsedSlots()),
                0, 0, 150, 20, juce::Justification::centredLeft);
     g.setColour(juce::Colours::green);
     double cpuload = processorRef.m_cpu_load.getLoadAsProportion();
     cpuload = juce::jmap<double>(cpuload, 0.0, 1.0, 0, 500);
-    g.drawRect(50,1,500,15);
-    g.fillRect(50,1,cpuload,15);
+    g.drawRect(50, 1, 500, 15);
+    g.fillRect(50, 1, cpuload, 15);
     for (int i = 0; i < 16; ++i)
     {
         g.drawLine(getWidth() / 16.0 * i, 20.0, getWidth() / 16.0 * i, getHeight());

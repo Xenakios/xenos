@@ -38,7 +38,6 @@ struct SRProvider
     }
 };
 
-
 class XenGrainVoice
 {
   public:
@@ -86,10 +85,9 @@ class XenGrainVoice
 
 class GrainVisualizationInfo
 {
-public:
+  public:
     GrainVisualizationInfo() {}
-    GrainVisualizationInfo(double pitch_, double volume_) :
-        pitch(pitch_), volume(volume_) {}
+    GrainVisualizationInfo(double pitch_, double volume_) : pitch(pitch_), volume(volume_) {}
     double pitch = 0.0;
     double volume = 0.0;
 };
@@ -111,12 +109,12 @@ class XenGrainStream
     std::array<XenGrainVoice, 16> m_voices;
 
     double m_sr = 44100.0;
-    VisualizerFifoType* m_grains_to_gui_fifo = nullptr;
+    VisualizerFifoType *m_grains_to_gui_fifo = nullptr;
     XenGrainStream()
     {
         m_rng = std::minstd_rand0((unsigned int)this);
         m_adsr.setSampleRate(m_sr);
-        m_adsr.setParameters({0.001, 0.01, 1.0, 0.4});
+        m_adsr.setParameters({0.01, 0.01, 1.0, 0.3});
     }
     bool isAvailable() const { return !m_is_playing; }
     bool m_use_tuning = false;
@@ -153,7 +151,7 @@ class XenGrainStream
         float pan = dist(m_rng);
         v.startGrain(m_sr, hz, gain, m_grain_dur, pan);
         if (m_grains_to_gui_fifo)
-            m_grains_to_gui_fifo->push({pitch,vol});
+            m_grains_to_gui_fifo->push({pitch, vol});
     }
     juce::ADSR m_adsr;
     void startStream(float rate, float minpitch, float maxpitch, float minvolume, float maxvolume,
@@ -168,7 +166,8 @@ class XenGrainStream
 
         m_is_playing = true;
         m_adsr.noteOn();
-        m_next_grain_time = 0.0;
+        if (m_next_grain_time > 2.0 * m_sr)
+            m_next_grain_time = 0.0;
         m_lfo0_amount = 0.0;
     }
 
@@ -231,14 +230,15 @@ class XenGrainStream
 class XenVintageGranular
 {
     double m_sr = 44100.0;
+
   public:
     std::array<XenGrainStream, 20> m_streams;
     VisualizerFifoType m_grains_to_gui_fifo;
     float m_screensdata[8][16][4];
     int m_maxscreen = 0;
     Tunings::Tuning m_tuning;
-    std::atomic<int> m_cur_screen;
-    XenVintageGranular(int seed) 
+    std::atomic<int> m_cur_screen{0};
+    XenVintageGranular(int seed)
     {
         m_grains_to_gui_fifo.reset(16384);
         m_rng = std::mt19937(seed);
@@ -299,7 +299,7 @@ class XenVintageGranular
             stream.stopStream();
         }
         std::uniform_int_distribution<int> screendist{0, m_maxscreen - 1};
-        int screentouse = screendist(m_rng);
+        int screentouse = m_cur_screen; // screendist(m_rng);
         m_cur_screen = screentouse;
         for (int i = 0; i < 16; ++i)
         {
@@ -344,7 +344,7 @@ class XenVintageGranular
         }
         if (m_lfo_update_counter == 0)
         {
-            m_lfo0.process_block(2.0, 0.2, 0);
+            m_lfo0.process_block(2.0, 0.5, LFOType::Shape::SMOOTH_NOISE);
         }
         ++m_lfo_update_counter;
         if (m_lfo_update_counter == m_sr_provider.BLOCK_SIZE)
