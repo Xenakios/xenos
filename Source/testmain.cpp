@@ -233,39 +233,39 @@ class XenGrainVoice
 
 class XenGrainStream
 {
-  public:
-    std::mt19937 m_rng;
-    std::array<XenGrainVoice, 16> m_voices;
     double m_grain_rate = 0.0;
     double m_min_pitch = 24.0;
     double m_max_pitch = 100.0;
     double m_min_volume = -40.0;
     double m_max_volume = 0.0;
-    double m_sr = 44100.0;
     double m_grain_dur = 0.05;
-    XenGrainStream() {}
-    void setGrainRate(float hz) { m_grain_rate = hz; }
-    void setStreamDuration(float seconds) {}
-    void setPitchLimitsSemitones(float minsemi, float maxsemi)
+    bool m_is_playing = false;
+
+  public:
+    std::minstd_rand0 m_rng;
+    std::array<XenGrainVoice, 16> m_voices;
+
+    double m_sr = 44100.0;
+
+    XenGrainStream()
     {
-        m_min_pitch = minsemi;
-        m_max_pitch = maxsemi;
+        m_rng = std::minstd_rand0((unsigned int)this);
+        m_adsr.setSampleRate(m_sr);
+        m_adsr.setParameters({0.001, 0.01, 1.0, 0.5});
     }
-    void setGrainDuration(double secs) { m_grain_dur = secs; }
-    void setVolumeLimitsDecibels(float minvol, float maxvol)
-    {
-        m_min_volume = minvol;
-        m_max_volume = maxvol;
-    }
+    bool isAvailable() const { return !m_is_playing; }
+
     void initVoice(XenGrainVoice &v)
     {
         std::uniform_real_distribution<float> dist{0.0f, 1.0f};
         float pitch = juce::jmap<float>(dist(m_rng), 0.0f, 1.0f, m_min_pitch, m_max_pitch);
         float hz = 440.0 * std::pow(2.0f, 1.0 / 12 * (pitch - 69.0));
+        jassert(hz > 16.0 && hz < 20000.0);
         float vol = juce::jmap<float>(dist(m_rng), 0.0f, 1.0f, m_min_volume, m_max_volume);
         float gain = juce::Decibels::decibelsToGain(vol);
         v.startGrain(m_sr, hz, gain, m_grain_dur);
     }
+    juce::ADSR m_adsr;
     void startStream(float rate, float minpitch, float maxpitch, float minvolume, float maxvolume,
                      float mingraindur, float maxgraindur)
     {
@@ -276,21 +276,23 @@ class XenGrainStream
         m_max_volume = maxvolume;
         m_grain_dur = mingraindur;
         m_stop_requested = false;
+        m_is_playing = true;
+        m_adsr.noteOn();
     }
     bool m_stop_requested = false;
     void stopStream()
     {
         m_stop_requested = true;
         m_stop_fade_counter = 0;
+        m_adsr.noteOff();
     }
     int m_stop_fade_counter = 0;
     int m_stream_id = -1;
     float getSample()
     {
-        const int fadelen = 16384;
-        if (m_grain_rate < 0.1 || m_stop_fade_counter >= fadelen)
+        if (!m_is_playing)
             return 0.0f;
-        if (!m_stop_requested && m_phase >= m_next_grain_time)
+        if (m_phase >= m_next_grain_time)
         {
             for (auto &v : m_voices)
             {
@@ -305,36 +307,25 @@ class XenGrainStream
             // m_next_grain_time = m_phase + ((1.0 / m_grain_rate) * m_sr);
         }
         float voicesum = 0.0f;
-        int activevoices = 0;
+
         for (auto &v : m_voices)
         {
             if (v.m_active)
             {
                 voicesum += v.getSample();
-                ++activevoices;
             }
         }
-        if (m_stop_requested)
+        float envgain = m_adsr.getNextSample();
+        voicesum *= envgain;
+
+        if (!m_adsr.isActive())
         {
-            ++m_stop_fade_counter;
-            float fadegain = 1.0 - 1.0 / fadelen * m_stop_fade_counter;
-            voicesum *= fadegain;
-        }
-        if (m_stop_fade_counter == fadelen)
-        {
-            for (auto &v : m_voices)
+            m_is_playing = false;
+            for (auto& v : m_voices)
                 v.m_active = false;
-            m_grain_rate = 0.0;
-            std::cout << "quick stopped voices for " << m_stream_id << "\n";
         }
-        /*
-        if (activevoices == 0 && m_stop_requested)
-        {
-            m_grain_rate = 0.0;
-            //std::cout << "no more active voices for " << this << "\n";
-            m_stop_requested = false;
-        }
-        */
+            
+
         m_phase += 1.0;
         return voicesum;
     }
@@ -345,32 +336,60 @@ class XenGrainStream
 class XenVintageGranular
 {
   public:
-    std::array<XenGrainStream, 16> m_streams;
+    std::array<XenGrainStream, 20> m_streams;
     double m_sr = 44100.0;
+    float m_screensdata[8][16][4];
+    int m_maxscreen = 0;
     XenVintageGranular(std::mt19937 &rng) : m_rng(rng)
     {
         for (int i = 0; i < m_streams.size(); ++i)
             m_streams[i].m_stream_id = i;
+        for (int i = 0; i < 8; ++i)
+            for (int j = 0; j < 16; ++j)
+                for (int k = 0; k < 4; ++k)
+                    m_screensdata[i][j][k] = 0.0;
+        juce::File datafile(R"(C:\develop\xenos\VintageGranular\testscreens.json)");
+        auto json = juce::JSON::parse(datafile);
+        auto allscreenssarray = json["screens"];
+        m_maxscreen = allscreenssarray.size();
+        for (int i = 0; i < allscreenssarray.size(); ++i)
+        {
+            std::cout << "screen " << i << "\n";
+            auto screenarray = allscreenssarray[i];
+            for (int j = 0; j < 4; ++j)
+            {
+                auto screenrow = screenarray[j];
+                auto rowstring = screenrow.toString();
+                std::cout << "\t";
+                for (int k = 0; k < 16; ++k)
+                {
+                    auto c = rowstring[k];
+                    if (c != '.')
+                        m_screensdata[i][k][3 - j] = c - 64;
+                    std::cout << m_screensdata[i][k][3-j] << " ";
+                }
+                std::cout << "\n";
+                
+            }
+        }
     }
     std::mt19937 &m_rng;
     void updateStreams()
     {
-        // cancel all previous streams
+        // cancel all previous active streams
         for (auto &stream : m_streams)
         {
+            // if (stream.m_grain_rate > 0)
             stream.stopStream();
         }
-        std::uniform_int_distribution<int> screendist{0, 7};
+        std::uniform_int_distribution<int> screendist{0, m_maxscreen - 1};
         int screentouse = screendist(m_rng);
-        const char **screendatas[8] = {grainScreenA, grainScreenB, grainScreenC, grainScreenD,
-                                       grainScreenE, grainScreenF, grainScreenG, grainScreenH};
-        const char **screendata = screendatas[screentouse];
         for (int i = 0; i < 16; ++i)
         {
             for (int j = 0; j < 4; ++j)
             {
 
-                float density = screendata[3 - j][i] - 65;
+                float density = m_screensdata[screentouse][i][j];
                 if (density > 0.0)
                 {
                     density = std::pow(M_E, density);
@@ -378,7 +397,7 @@ class XenVintageGranular
                     bool streamfound = false;
                     for (auto &stream : m_streams)
                     {
-                        if (stream.m_grain_rate < 0.1)
+                        if (stream.isAvailable())
                         {
                             float pitchwidth = (115.0 - 24.0) / 16;
                             float minpitch = 24.0 + (i * pitchwidth);
@@ -386,7 +405,8 @@ class XenVintageGranular
                             float volwidth = 40.0 / 4;
                             float minvol = -40.0 + volwidth * j;
                             float maxvol = -40.0 + volwidth * (j + 1);
-                            stream.startStream(density, minpitch, maxpitch, minvol, maxvol, 0.05,
+                            float graindur = jmap<float>(minpitch,24.0,115.0,0.15,0.025);
+                            stream.startStream(density, minpitch, maxpitch, minvol, maxvol, graindur,
                                                0.05);
                             streamfound = true;
                             break;
@@ -402,41 +422,71 @@ class XenVintageGranular
     {
         if (m_phase == 0.0)
         {
-            std::cout << "updating streams\n";
+            // std::cout << "updating streams\n";
             updateStreams();
         }
         outframe[0] = 0.0f;
         outframe[1] = 0.0f;
         for (auto &stream : m_streams)
         {
-            float out = stream.getSample();
-            outframe[0] += out;
-            outframe[1] += out;
+            if (!stream.isAvailable())
+            {
+                float out = stream.getSample();
+                outframe[0] += out;
+                outframe[1] += out;
+            }
+            
         }
         m_phase += 1.0;
-        if (m_phase >= m_sr * 0.5)
+        if (m_phase >= m_sr * m_screendur)
             m_phase = 0.0;
     }
     double m_phase = 0.0;
+    double m_screendur = 1.0;
 };
 
 void test_vintage_grains()
 {
-    std::mt19937 rng;
+    std::mt19937 rng{7};
     auto writer = makeWavWriter(juce::File("C:\\MusicAudio\\xenvintagegrain01.wav"), 2, 44100);
     auto eng = std::make_unique<XenVintageGranular>(rng);
-    int outlen = 60 * 44100;
+    double outlenseconds = 60.0;
+    int outlen = outlenseconds * 44100;
     juce::AudioBuffer<float> buf(2, outlen);
     float gainscaler = juce::Decibels::decibelsToGain(-20.0);
+    auto bufs = buf.getArrayOfWritePointers();
+    double t0 = juce::Time::getMillisecondCounterHiRes();
     for (int i = 0; i < outlen; ++i)
     {
         float samples[2];
         eng->process(samples);
 
-        buf.setSample(0, i, gainscaler * samples[0]);
-        buf.setSample(1, i, gainscaler * samples[1]);
+        bufs[0][i] = gainscaler * samples[0];
+        bufs[1][i] = gainscaler * samples[1];
     }
+    double t1 = juce::Time::getMillisecondCounterHiRes();
+    std::cout << "processing took " << t1-t0 << " milliseconds\n";
+    double rtfactor = outlenseconds / ((t1-t0) / 1000.0);
+    std::cout << rtfactor << " x realtime\n";
     writer->writeFromAudioSampleBuffer(buf, 0, outlen);
+    
+}
+
+void test_jsonparse()
+{
+    juce::File datafile(R"(C:\develop\xenos\VintageGranular\testscreens.json)");
+    auto json = juce::JSON::parse(datafile);
+    auto allscreenssarray = json["screens"];
+    for (int i = 0; i < allscreenssarray.size(); ++i)
+    {
+        std::cout << "screen " << i << "\n";
+        auto screenarray = allscreenssarray[i];
+        for (int j = 0; j < 4; ++j)
+        {
+            auto screenrow = screenarray[j];
+            std::cout << "\t" << screenrow.toString() << "\n";
+        }
+    }
 }
 
 class XenGranularEngine
@@ -601,5 +651,6 @@ int main()
     // test_dropped_samples();
     // test_xen_grains();
     test_vintage_grains();
+    // test_jsonparse();
     return 0;
 }
