@@ -279,11 +279,12 @@ class XenGrainStream
     }
     bool m_stop_requested = false;
     void stopStream()
-    { 
-        m_stop_requested = true; 
+    {
+        m_stop_requested = true;
         m_stop_fade_counter = 0;
     }
     int m_stop_fade_counter = 0;
+    int m_stream_id = -1;
     float getSample()
     {
         const int fadelen = 16384;
@@ -316,15 +317,15 @@ class XenGrainStream
         if (m_stop_requested)
         {
             ++m_stop_fade_counter;
-            float fadegain = 1.0-1.0/fadelen*m_stop_fade_counter;
+            float fadegain = 1.0 - 1.0 / fadelen * m_stop_fade_counter;
             voicesum *= fadegain;
         }
         if (m_stop_fade_counter == fadelen)
         {
-            for(auto& v : m_voices)
+            for (auto &v : m_voices)
                 v.m_active = false;
             m_grain_rate = 0.0;
-            std::cout << "quick stopped voices for " << "\n";
+            std::cout << "quick stopped voices for " << m_stream_id << "\n";
         }
         /*
         if (activevoices == 0 && m_stop_requested)
@@ -348,28 +349,8 @@ class XenVintageGranular
     double m_sr = 44100.0;
     XenVintageGranular(std::mt19937 &rng) : m_rng(rng)
     {
-        /*
-        m_streams[0].m_min_pitch = 24.0;
-        m_streams[0].m_max_pitch = 48.0;
-        m_streams[0].m_min_volume = -12.0;
-        m_streams[0].m_max_volume = -6.0;
-        m_streams[0].setGrainRate(4.0);
-        m_streams[0].setGrainDuration(0.1);
-
-        m_streams[1].m_min_pitch = 80.0;
-        m_streams[1].m_max_pitch = 92.0;
-        m_streams[1].m_min_volume = -36.0;
-        m_streams[1].m_max_volume = -30.0;
-        m_streams[1].setGrainRate(8.0);
-        m_streams[1].setGrainDuration(0.03);
-
-        m_streams[2].m_min_pitch = 60.0;
-        m_streams[2].m_max_pitch = 72.0;
-        m_streams[2].m_min_volume = -24.0;
-        m_streams[2].m_max_volume = -20.0;
-        m_streams[2].setGrainRate(32.0);
-        m_streams[2].setGrainDuration(0.06);
-        */
+        for (int i = 0; i < m_streams.size(); ++i)
+            m_streams[i].m_stream_id = i;
     }
     std::mt19937 &m_rng;
     void updateStreams()
