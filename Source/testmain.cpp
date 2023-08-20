@@ -6,6 +6,37 @@
 #include "sst/basic-blocks/dsp/PanLaws.h"
 #include "sst/waveshapers.h"
 #include <algorithm>
+#include "sst/basic-blocks/modulators/SimpleLFO.h"
+
+struct SRProvider
+{
+    static constexpr int BLOCK_SIZE = 32;
+    static constexpr int BLOCK_SIZE_OS = BLOCK_SIZE * 2;
+    SRProvider() { initTables(); }
+    alignas(32) float table_envrate_linear[512];
+    double samplerate = 44100.0;
+    void initTables()
+    {
+        double dsamplerate_os = samplerate * 2;
+        for (int i = 0; i < 512; ++i)
+        {
+            double k =
+                dsamplerate_os * pow(2.0, (((double)i - 256.0) / 16.0)) / (double)BLOCK_SIZE_OS;
+            table_envrate_linear[i] = (float)(1.f / k);
+        }
+    }
+    float envelope_rate_linear_nowrap(float x)
+    {
+        x *= 16.f;
+        x += 256.f;
+        int e = std::clamp<int>((int)x, 0, 0x1ff - 1);
+
+        float a = x - (float)e;
+
+        return (1 - a) * table_envrate_linear[e & 0x1ff] +
+               a * table_envrate_linear[(e + 1) & 0x1ff];
+    }
+};
 
 static std::unique_ptr<juce::AudioFormatWriter> makeWavWriter(juce::File outfile, int chans,
                                                               double sr)
@@ -259,15 +290,37 @@ class XenGrainStream
     {
         m_rng = std::minstd_rand0((unsigned int)this);
         m_adsr.setSampleRate(m_sr);
-        m_adsr.setParameters({0.001, 0.01, 1.0, 0.5});
+        m_adsr.setParameters({0.001, 0.01, 1.0, 0.4});
     }
     bool isAvailable() const { return !m_is_playing; }
-
+    bool m_use_tuning = false;
     void initVoice(XenGrainVoice &v)
     {
         std::uniform_real_distribution<float> dist{0.0f, 1.0f};
         float pitch = juce::jmap<float>(dist(m_rng), 0.0f, 1.0f, m_min_pitch, m_max_pitch);
-        float hz = 440.0 * std::pow(2.0f, 1.0 / 12 * (pitch - 69.0));
+        pitch += m_lfo0_amount;
+        float hz = 440.0f;
+        if (!m_use_tuning)
+            hz = 440.0 * std::pow(2.0f, 1.0 / 12 * (pitch - 69.0));
+        else
+        {
+            int sanity = 0;
+            while (true)
+            {
+                pitch = juce::jmap<float>(dist(m_rng), 0.0f, 1.0f, m_min_pitch, m_max_pitch);
+                
+                hz = m_tuning->frequencyForMidiNote(pitch);
+                if (hz > 16.0f && hz <= 7000.0)
+                    break;
+                ++sanity;
+                if (sanity > 100)
+                {
+                    hz = 440.0 * std::pow(2.0f, 1.0 / 12 * (pitch - 69.0));
+                    break;
+                }
+            }
+        }
+
         jassert(hz > 16.0 && hz < 20000.0);
         float vol = juce::jmap<float>(dist(m_rng), 0.0f, 1.0f, m_min_volume, m_max_volume);
         float gain = juce::Decibels::decibelsToGain(vol);
@@ -298,6 +351,7 @@ class XenGrainStream
     }
     int m_stop_fade_counter = 0;
     int m_stream_id = -1;
+    float m_lfo0_amount = 0.0;
     void processFrame(float *outframe)
     {
         if (!m_is_playing)
@@ -347,6 +401,7 @@ class XenGrainStream
     }
     double m_phase = 0;
     double m_next_grain_time = 0;
+    Tunings::Tuning *m_tuning = nullptr;
 };
 
 class XenVintageGranular
@@ -356,10 +411,16 @@ class XenVintageGranular
     double m_sr = 44100.0;
     float m_screensdata[8][16][4];
     int m_maxscreen = 0;
+    Tunings::Tuning m_tuning;
     XenVintageGranular(std::mt19937 &rng) : m_rng(rng)
     {
+        m_tuning = Tunings::evenDivisionOfCentsByM(1200.0, 7);
         for (int i = 0; i < m_streams.size(); ++i)
+        {
             m_streams[i].m_stream_id = i;
+            m_streams[i].m_tuning = &m_tuning;
+        }
+
         for (int i = 0; i < 8; ++i)
             for (int j = 0; j < 16; ++j)
                 for (int k = 0; k < 4; ++k)
@@ -368,6 +429,8 @@ class XenVintageGranular
         auto json = juce::JSON::parse(datafile);
         auto allscreenssarray = json["screens"];
         m_maxscreen = allscreenssarray.size();
+        std::cout << std::fixed;
+        std::cout << std::setprecision(2);
         for (int i = 0; i < allscreenssarray.size(); ++i)
         {
             std::cout << "screen " << i << "\n";
@@ -381,20 +444,24 @@ class XenVintageGranular
                 {
                     auto c = rowstring[k];
                     if (c != '.')
+                    {
                         m_screensdata[i][k][3 - j] = c - 64;
-                    std::cout << m_screensdata[i][k][3 - j] << " ";
+                        std::cout << std::pow(M_E, m_screensdata[i][k][3 - j]) << " ";
+                    }
+                    else
+                        std::cout << 0.0 << " ";
                 }
                 std::cout << "\n";
             }
         }
     }
     std::mt19937 &m_rng;
+
     void updateStreams()
     {
         // cancel all previous active streams
         for (auto &stream : m_streams)
         {
-            // if (stream.m_grain_rate > 0)
             stream.stopStream();
         }
         std::uniform_int_distribution<int> screendist{0, m_maxscreen - 1};
@@ -440,6 +507,14 @@ class XenVintageGranular
             // std::cout << "updating streams\n";
             updateStreams();
         }
+        if (m_lfo_update_counter == 0)
+        {
+            m_lfo0.process_block(2.0, 0.2, 0);
+
+        }
+        ++m_lfo_update_counter;
+        if (m_lfo_update_counter == m_sr_provider.BLOCK_SIZE)
+            m_lfo_update_counter = 0;
         outframe[0] = 0.0f;
         outframe[1] = 0.0f;
         float streamframe[2] = {0.0f, 0.0f};
@@ -447,6 +522,7 @@ class XenVintageGranular
         {
             if (!stream.isAvailable())
             {
+                stream.m_lfo0_amount = 3.0 * m_lfo0.outputBlock[0];
                 stream.processFrame(streamframe);
                 outframe[0] += streamframe[0];
                 outframe[1] += streamframe[1];
@@ -457,7 +533,11 @@ class XenVintageGranular
             m_phase = 0.0;
     }
     double m_phase = 0.0;
-    double m_screendur = 1.0;
+    double m_screendur = 0.5;
+    SRProvider m_sr_provider;
+    using LFOType = sst::basic_blocks::modulators::SimpleLFO<SRProvider, 32>;
+    LFOType m_lfo0{&m_sr_provider};
+    int m_lfo_update_counter = 0;
 };
 
 inline double calcMedian(std::vector<double> vec)
@@ -478,10 +558,10 @@ inline double millisecondsToPercentage(double samplerate, int buffersize, double
 
 void test_vintage_grains()
 {
-    std::mt19937 rng{7};
-    auto writer = makeWavWriter(juce::File("C:\\MusicAudio\\xenvintagegrain01.wav"), 2, 44100);
+    std::mt19937 rng{9569};
+    auto writer = makeWavWriter(juce::File("C:\\MusicAudio\\xenvintagegrain03.wav"), 2, 44100);
     auto eng = std::make_unique<XenVintageGranular>(rng);
-    double outlenseconds = 60.0;
+    double outlenseconds = 30.0;
     int outlen = outlenseconds * 44100;
     int procbufsize = 512;
     juce::AudioBuffer<float> buf(2, procbufsize);
@@ -493,6 +573,7 @@ void test_vintage_grains()
     benchmarks.reserve(65536);
     while (outcounter < outlen)
     {
+        // std::cout << outcounter << " ";
         double t0 = juce::Time::getMillisecondCounterHiRes();
         for (int i = 0; i < procbufsize; ++i)
         {
@@ -507,18 +588,16 @@ void test_vintage_grains()
         writer->writeFromAudioSampleBuffer(buf, 0, procbufsize);
         outcounter += procbufsize;
     }
+    // std::cout << "\n";
     auto it = std::max_element(benchmarks.begin(), benchmarks.end());
-    std::cout << "maximum callback duration was " << *it << " milliseconds\n";
-    std::cout << "maximum callback duration was "
-              << millisecondsToPercentage(44100, procbufsize, *it) << " % of callbacklen\n";
+    std::cout << "maximum callback duration was " << *it << " milliseconds, "
+              << millisecondsToPercentage(44100, procbufsize, *it) << "%\n";
     double median = calcMedian(benchmarks);
-    std::cout << "median callback duration was " << median << " milliseconds\n";
-    std::cout << "median callback duration was "
-              << millisecondsToPercentage(44100, procbufsize, median) << " % of callbacklen\n";
+    std::cout << "median callback duration was " << median << " milliseconds, "
+              << millisecondsToPercentage(44100, procbufsize, median) << "%\n";
     auto avg = std::accumulate(benchmarks.begin(), benchmarks.end(), 0.0) / benchmarks.size();
-    std::cout << "average callback duration was " << avg << " milliseconds\n";
-    std::cout << "average callback duration was "
-              << millisecondsToPercentage(44100, procbufsize, avg) << " % of callbacklen\n";
+    std::cout << "average callback duration was " << avg << " milliseconds, "
+              << millisecondsToPercentage(44100, procbufsize, avg) << "%\n";
 }
 
 void test_jsonparse()
