@@ -122,7 +122,7 @@ class XenGrainStream
     {
         std::uniform_real_distribution<float> dist{0.0f, 1.0f};
         float pitch = juce::jmap<float>(dist(m_rng), 0.0f, 1.0f, m_min_pitch, m_max_pitch);
-        pitch += m_lfo0_amount;
+        pitch += m_pitch_mod_amount;
         float hz = 440.0f;
         if (!m_use_tuning)
             hz = 440.0 * std::pow(2.0f, 1.0 / 12 * (pitch - 69.0));
@@ -154,9 +154,13 @@ class XenGrainStream
             m_grains_to_gui_fifo->push({pitch, vol});
     }
     juce::ADSR m_adsr;
+    int m_screen_x = 0;
+    int m_screen_y = 0;
     void startStream(float rate, float minpitch, float maxpitch, float minvolume, float maxvolume,
-                     float mingraindur, float maxgraindur)
+                     float mingraindur, float maxgraindur, int screenX, int screenY)
     {
+        m_screen_x = screenX;
+        m_screen_y = screenY;
         m_grain_rate = rate;
         m_min_pitch = minpitch;
         m_max_pitch = maxpitch;
@@ -168,13 +172,13 @@ class XenGrainStream
         m_adsr.noteOn();
         if (m_next_grain_time > 2.0 * m_sr)
             m_next_grain_time = 0.0;
-        m_lfo0_amount = 0.0;
+        m_pitch_mod_amount = 0.0;
     }
 
     void stopStream() { m_adsr.noteOff(); }
 
     int m_stream_id = -1;
-    float m_lfo0_amount = 0.0;
+    float m_pitch_mod_amount = 0.0;
     void processFrame(float *outframe)
     {
         if (!m_is_playing)
@@ -324,7 +328,7 @@ class XenVintageGranular
                             float maxvol = -40.0 + volwidth * (j + 1);
                             float graindur = juce::jmap<float>(minpitch, 24.0, 115.0, 0.15, 0.025);
                             stream.startStream(density, minpitch, maxpitch, minvol, maxvol,
-                                               graindur, 0.05);
+                                               graindur, 0.05, i, j);
                             streamfound = true;
                             break;
                         }
@@ -345,6 +349,15 @@ class XenVintageGranular
         if (m_lfo_update_counter == 0)
         {
             m_lfo0.process_block(2.0, 0.5, LFOType::Shape::SMOOTH_NOISE);
+            m_lfo1.process_block(3.0, 0.6, LFOType::Shape::SMOOTH_NOISE);
+            for(auto& stream : m_streams)
+            {
+                stream.m_pitch_mod_amount = 0.0;
+                if (stream.m_screen_x % 2 == 0)
+                    stream.m_pitch_mod_amount = 1.0 * m_lfo0.outputBlock[0];
+                if (stream.m_screen_x % 2 == 1)
+                    stream.m_pitch_mod_amount = 6.0 * m_lfo1.outputBlock[0];
+            }
         }
         ++m_lfo_update_counter;
         if (m_lfo_update_counter == m_sr_provider.BLOCK_SIZE)
@@ -356,7 +369,7 @@ class XenVintageGranular
         {
             if (!stream.isAvailable())
             {
-                stream.m_lfo0_amount = 3.0 * m_lfo0.outputBlock[0];
+                
                 stream.processFrame(streamframe);
                 outframe[0] += streamframe[0];
                 outframe[1] += streamframe[1];
@@ -371,5 +384,6 @@ class XenVintageGranular
     SRProvider m_sr_provider;
     using LFOType = sst::basic_blocks::modulators::SimpleLFO<SRProvider, 32>;
     LFOType m_lfo0{&m_sr_provider};
+    LFOType m_lfo1{&m_sr_provider};
     int m_lfo_update_counter = 0;
 };
