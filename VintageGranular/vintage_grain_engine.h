@@ -240,6 +240,7 @@ class XenVintageGranular
     float m_global_durations = 1.0f;
     int m_cur_active_screen = 0;
     int m_screen_select_mode = 0;
+    int m_switch_to_screen = -1;
     double m_screendur = 0.5;
 
   public:
@@ -271,9 +272,8 @@ class XenVintageGranular
         {
             if (mode != m_cur_active_screen)
             {
-                m_cur_active_screen = mode;
+                m_switch_to_screen = mode;
                 m_screen_select_mode = 0;
-                // updateStreams();
             }
         }
         if (mode == -2)
@@ -363,17 +363,26 @@ class XenVintageGranular
     }
     void updateStreams()
     {
-        // cancel all previous active streams
-        for (auto &stream : m_streams)
-        {
-            stream.stopStream();
-        }
+
         std::uniform_int_distribution<int> screendist{0, m_maxscreen - 1};
         int screentouse = m_cur_active_screen;
+        if (m_screen_select_mode == 0)
+        {
+            jassert(m_switch_to_screen>=0);
+            screentouse = m_switch_to_screen;
+        }
+            
         if (m_screen_select_mode == 1)
             screentouse = screendist(m_rng);
         if (m_screen_select_mode == 2)
             screentouse = (screentouse + 1) % m_maxscreen;
+        if (screentouse == m_cur_active_screen)
+            return;
+        // cancel all previous active streams if screen changed
+        for (auto &stream : m_streams)
+        {
+            stream.stopStream();
+        }
         m_cur_active_screen = screentouse;
         for (int i = 0; i < 16; ++i)
         {
