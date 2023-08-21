@@ -1,20 +1,51 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
+using jnr = juce::NormalisableRange<float>;
+
+inline void createAndAddFloatParameter(juce::AudioProcessorValueTreeState::ParameterLayout &layout,
+                                       juce::String paramid, juce::String displayname, float minval,
+                                       float maxval, float step, float defaultval)
+{
+    auto fpar = std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID(paramid, 1), displayname, jnr(minval, maxval, step), defaultval);
+    layout.add(std::move(fpar));
+}
+
+juce::AudioProcessorValueTreeState::ParameterLayout
+VintageGranularAudioProcessor::createParameters()
+{
+    juce::AudioProcessorValueTreeState::ParameterLayout layout;
+    createAndAddFloatParameter(layout, "MAINVOLUME", "Main volume", -48.0, 0.0, 0.5, -24.0);
+
+    return layout;
+}
+
 //==============================================================================
 VintageGranularAudioProcessor::VintageGranularAudioProcessor()
-    : AudioProcessor(BusesProperties()
+    : foleys::MagicProcessor(BusesProperties()
 #if !JucePlugin_IsMidiEffect
 #if !JucePlugin_IsSynth
-                         .withInput("Input", juce::AudioChannelSet::stereo(), true)
+                                 .withInput("Input", juce::AudioChannelSet::stereo(), true)
 #endif
-                         .withOutput("Output", juce::AudioChannelSet::stereo(), true)
+                                 .withOutput("Output", juce::AudioChannelSet::stereo(), true)
 #endif
-      )
+                                 ),
+      m_apvts(*this, nullptr, "STATE", createParameters())
 {
+    FOLEYS_SET_SOURCE_PATH(__FILE__);
 }
 
 VintageGranularAudioProcessor::~VintageGranularAudioProcessor() {}
+
+void VintageGranularAudioProcessor::initialiseBuilder (foleys::MagicGUIBuilder& builder)
+{
+    builder.registerJUCEFactories();
+    builder.registerJUCELookAndFeels();
+
+    builder.registerFactory("GrainVisualizer", &GrainVisualizerItem::factory);
+
+}
 
 //==============================================================================
 const juce::String VintageGranularAudioProcessor::getName() const { return JucePlugin_Name; }
@@ -107,7 +138,7 @@ bool VintageGranularAudioProcessor::isBusesLayoutSupported(const BusesLayout &la
 }
 
 void VintageGranularAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
-                                             juce::MidiBuffer &midiMessages)
+                                                 juce::MidiBuffer &midiMessages)
 {
     juce::ignoreUnused(midiMessages);
     juce::AudioProcessLoadMeasurer::ScopedTimer measure(m_cpu_load, buffer.getNumSamples());
@@ -119,7 +150,8 @@ void VintageGranularAudioProcessor::processBlock(juce::AudioBuffer<float> &buffe
         buffer.clear(i, 0, buffer.getNumSamples());
 
     auto bufs = buffer.getArrayOfWritePointers();
-    float gainscaler = juce::Decibels::decibelsToGain(-30.0);
+    float mainvol = *m_apvts.getRawParameterValue("MAINVOLUME");
+    float gainscaler = juce::Decibels::decibelsToGain(mainvol);
     for (int i = 0; i < buffer.getNumSamples(); ++i)
     {
         float outframe[2];
@@ -130,18 +162,19 @@ void VintageGranularAudioProcessor::processBlock(juce::AudioBuffer<float> &buffe
 }
 
 //==============================================================================
+/*
 bool VintageGranularAudioProcessor::hasEditor() const
 {
     return true; // (change this to false if you choose to not supply an editor)
-    
 }
-
+*/
+/*
 juce::AudioProcessorEditor *VintageGranularAudioProcessor::createEditor()
 {
     return new AudioPluginAudioProcessorEditor(*this);
 }
-
-//==============================================================================
+*/
+/*
 void VintageGranularAudioProcessor::getStateInformation(juce::MemoryBlock &destData)
 {
     // You should use this method to store your parameters in the memory block.
@@ -149,15 +182,19 @@ void VintageGranularAudioProcessor::getStateInformation(juce::MemoryBlock &destD
     // as intermediaries to make it easy to save and load complex data.
     juce::ignoreUnused(destData);
 }
-
+*/
+/*
 void VintageGranularAudioProcessor::setStateInformation(const void *data, int sizeInBytes)
 {
     // You should use this method to restore your parameters from this memory block,
     // whose contents will have been created by the getStateInformation() call.
     juce::ignoreUnused(data, sizeInBytes);
 }
-
+*/
 
 //==============================================================================
 // This creates new instances of the plugin..
-juce::AudioProcessor *JUCE_CALLTYPE createPluginFilter() { return new VintageGranularAudioProcessor(); }
+juce::AudioProcessor *JUCE_CALLTYPE createPluginFilter()
+{
+    return new VintageGranularAudioProcessor();
+}

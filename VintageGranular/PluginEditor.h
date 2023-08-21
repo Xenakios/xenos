@@ -5,6 +5,15 @@
 class GrainScreenComponent : public juce::Component, public juce::Timer
 {
   public:
+    enum ColourIDs
+    {
+        // we are safe from collissions, because we set the colours on every component directly from
+        // the stylesheet
+        backgroundColourId,
+        drawColourId,
+        fillColourId
+    };
+
     GrainScreenComponent(VintageGranularAudioProcessor &p) : m_proc(p) { startTimerHz(10); }
     void timerCallback() override { repaint(); }
     void paint(juce::Graphics &g) override
@@ -43,6 +52,50 @@ class GrainScreenComponent : public juce::Component, public juce::Timer
     VintageGranularAudioProcessor &m_proc;
 };
 
+// This class is creating and configuring your custom component
+class GrainVisualizerItem : public foleys::GuiItem
+{
+  public:
+    FOLEYS_DECLARE_GUI_FACTORY(GrainVisualizerItem)
+
+    GrainVisualizerItem(foleys::MagicGUIBuilder &builder, const juce::ValueTree &node)
+        : foleys::GuiItem(builder, node)
+    {
+        // Create the colour names to have them configurable
+        setColourTranslation({{"grainscreen-background", GrainScreenComponent::backgroundColourId},
+                              {"grainscreen-draw", GrainScreenComponent::drawColourId},
+                              {"grainscreen-fill", GrainScreenComponent::fillColourId}});
+        grainvis = std::make_unique<GrainScreenComponent>(
+            *static_cast<VintageGranularAudioProcessor *>(builder.getMagicState().getProcessor()));
+        addAndMakeVisible(*grainvis);
+    }
+
+    std::vector<foleys::SettableProperty> getSettableProperties() const override
+    {
+        std::vector<foleys::SettableProperty> newProperties;
+
+        // newProperties.push_back ({ configNode, "factor", foleys::SettableProperty::Number, 1.0f,
+        // {} });
+
+        return newProperties;
+    }
+
+    // Override update() to set the values to your custom component
+    void update() override
+    {
+        // auto factor = getProperty ("factor");
+        // lissajour.setFactor (factor.isVoid() ? 3.0f : float (factor));
+    }
+
+    juce::Component *getWrappedComponent() override { return grainvis.get(); }
+
+  private:
+    std::unique_ptr<GrainScreenComponent> grainvis;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(GrainVisualizerItem)
+};
+
+#ifdef USING_PLUGINMAGIC
 //==============================================================================
 class AudioPluginAudioProcessorEditor : public juce::AudioProcessorEditor, public juce::Timer
 {
@@ -60,5 +113,7 @@ class AudioPluginAudioProcessorEditor : public juce::AudioProcessorEditor, publi
     // access the processor object that created it.
     VintageGranularAudioProcessor &processorRef;
     GrainScreenComponent m_grain_comp;
+    juce::GenericAudioProcessorEditor m_generic_editor;
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AudioPluginAudioProcessorEditor)
 };
+#endif

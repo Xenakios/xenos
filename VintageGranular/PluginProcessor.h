@@ -5,18 +5,9 @@
 #include "sst/basic-blocks/dsp/PanLaws.h"
 #include "choc_SingleReaderSingleWriterFIFO.h"
 #include "vintage_grain_engine.h"
+#include "foleys_gui_magic/foleys_gui_magic.h"
 
-inline float softClip(float x)
-{
-    if (x <= -1.0f)
-        return -2.0f / 3.0f;
-    if (x >= 1.0f)
-        return 2.0f / 3.0f;
-    return x - std::pow(x, 3.0f) / 3.0f;
-}
-
-//==============================================================================
-class VintageGranularAudioProcessor : public juce::AudioProcessor
+class VintageGranularAudioProcessor : public foleys::MagicProcessor
 {
   public:
     //==============================================================================
@@ -33,8 +24,8 @@ class VintageGranularAudioProcessor : public juce::AudioProcessor
     using AudioProcessor::processBlock;
 
     //==============================================================================
-    juce::AudioProcessorEditor *createEditor() override;
-    bool hasEditor() const override;
+    // juce::AudioProcessorEditor *createEditor() override;
+    // bool hasEditor() const override;
 
     //==============================================================================
     const juce::String getName() const override;
@@ -52,12 +43,14 @@ class VintageGranularAudioProcessor : public juce::AudioProcessor
     void changeProgramName(int index, const juce::String &newName) override;
 
     //==============================================================================
-    void getStateInformation(juce::MemoryBlock &destData) override;
-    void setStateInformation(const void *data, int sizeInBytes) override;
+    // void getStateInformation(juce::MemoryBlock &destData) override;
+    // void setStateInformation(const void *data, int sizeInBytes) override;
     XenVintageGranular m_eng{9999};
     juce::AudioProcessLoadMeasurer m_cpu_load;
-
+    juce::AudioProcessorValueTreeState m_apvts;
+    void initialiseBuilder (foleys::MagicGUIBuilder& builder) override;
   private:
+    juce::AudioProcessorValueTreeState::ParameterLayout createParameters();
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(VintageGranularAudioProcessor)
 };

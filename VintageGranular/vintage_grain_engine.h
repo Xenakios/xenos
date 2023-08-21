@@ -8,6 +8,15 @@
 #include <algorithm>
 #include "sst/basic-blocks/modulators/SimpleLFO.h"
 
+inline float softClip(float x)
+{
+    if (x <= -1.0f)
+        return -2.0f / 3.0f;
+    if (x >= 1.0f)
+        return 2.0f / 3.0f;
+    return x - std::pow(x, 3.0f) / 3.0f;
+}
+
 struct SRProvider
 {
     static constexpr int BLOCK_SIZE = 32;

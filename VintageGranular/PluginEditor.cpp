@@ -1,13 +1,15 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
+#ifdef USING_PLUGINMAGIC
 //==============================================================================
 AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor(VintageGranularAudioProcessor &p)
-    : AudioProcessorEditor(&p), processorRef(p), m_grain_comp(p)
+    : AudioProcessorEditor(&p), processorRef(p), m_grain_comp(p), m_generic_editor(p)
 {
     juce::ignoreUnused(processorRef);
     addAndMakeVisible(m_grain_comp);
-    setSize(1200, 600);
+    addAndMakeVisible(m_generic_editor);
+    setSize(1200, 700);
     startTimerHz(20);
 }
 
@@ -35,5 +37,7 @@ void AudioPluginAudioProcessorEditor::timerCallback() { repaint(0, 0, getWidth()
 
 void AudioPluginAudioProcessorEditor::resized()
 {
-    m_grain_comp.setBounds(3, 21, getWidth() - 6, getHeight() - 23);
+    m_grain_comp.setBounds(3, 21, getWidth() - 6, getHeight() - 123);
+    m_generic_editor.setBounds(3, m_grain_comp.getBottom(), getWidth() - 6, 99);
 }
+#endif
