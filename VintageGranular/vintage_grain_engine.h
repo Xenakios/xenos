@@ -238,19 +238,49 @@ class XenVintageGranular
     float m_density_scaling = 1.0f;
     float m_global_transpose = 0.0f;
     float m_global_durations = 1.0f;
+    int m_cur_active_screen = 0;
+    int m_screen_select_mode = 0;
+    double m_screendur = 0.5;
+
   public:
     std::array<XenGrainStream, 20> m_streams;
     VisualizerFifoType m_grains_to_gui_fifo;
     float m_screensdata[8][16][4];
     int m_maxscreen = 0;
     Tunings::Tuning m_tuning;
-    std::atomic<int> m_cur_screen{0};
+
     float m_min_pitch = 24.0;
     float m_max_pitch = 115.0;
     bool m_use_tuning = false;
     void setDensityScaling(float x) { m_density_scaling = x; }
     void setDurationScaling(float x) { m_global_durations = x; }
     void setGlobalTranspose(float x) { m_global_transpose = x; }
+    void setAutoScreenSelectRate(float seconds)
+    {
+        if (std::abs(seconds - m_screendur) > 0.01)
+        {
+            m_screendur = seconds;
+            if (m_phase >= m_screendur)
+                m_phase = 0.0;
+        }
+    }
+    int getCurrentlyPlayingScreen() const { return m_cur_active_screen; }
+    void setScreenOrSelectMode(int mode)
+    {
+        if (mode >= 0 && mode < 8)
+        {
+            if (mode != m_cur_active_screen)
+            {
+                m_cur_active_screen = mode;
+                m_screen_select_mode = 0;
+                // updateStreams();
+            }
+        }
+        if (mode == -2)
+            m_screen_select_mode = 1;
+        if (mode == -1)
+            m_screen_select_mode = 2;
+    }
     void updatePitchLimits()
     {
         if (!m_use_tuning)
@@ -339,8 +369,12 @@ class XenVintageGranular
             stream.stopStream();
         }
         std::uniform_int_distribution<int> screendist{0, m_maxscreen - 1};
-        int screentouse = m_cur_screen; // screendist(m_rng);
-        m_cur_screen = screentouse;
+        int screentouse = m_cur_active_screen;
+        if (m_screen_select_mode == 1)
+            screentouse = screendist(m_rng);
+        if (m_screen_select_mode == 2)
+            screentouse = (screentouse + 1) % m_maxscreen;
+        m_cur_active_screen = screentouse;
         for (int i = 0; i < 16; ++i)
         {
             for (int j = 0; j < 4; ++j)
@@ -420,7 +454,7 @@ class XenVintageGranular
             m_phase = 0.0;
     }
     double m_phase = 0.0;
-    double m_screendur = 0.5;
+
     SRProvider m_sr_provider;
     using LFOType = sst::basic_blocks::modulators::SimpleLFO<SRProvider, 32>;
     LFOType m_lfo0{&m_sr_provider};

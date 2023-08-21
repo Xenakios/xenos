@@ -13,6 +13,8 @@ static const juce::Identifier mainVolume{"MAINVOLUME"};
 static const juce::Identifier mainDensity{"MAINDENSITY"};
 static const juce::Identifier mainTranspose{"MAINTRANSPOSE"};
 static const juce::Identifier mainGrainDur{"MAINDURATIONSCALE"};
+static const juce::Identifier screenSelect{"SCREENSELECT"};
+static const juce::Identifier screenChangeRate{"SCREENSELECTSPEED"};
 } // namespace ParamIDs
 
 class VintageGranularAudioProcessor : public foleys::MagicProcessor

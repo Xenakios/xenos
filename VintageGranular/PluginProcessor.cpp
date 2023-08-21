@@ -24,6 +24,10 @@ VintageGranularAudioProcessor::createParameters()
                                0.5, 0.0);
     createAndAddFloatParameter(layout, ParamIDs::mainGrainDur, "Grain duration scaling", 0.1, 2.0,
                                0.01, 1.0);
+    auto ipar = std::make_unique<juce::AudioParameterInt>(ParamIDs::screenSelect.toString(), "Screen select", -2, 7, -2);
+    layout.add(std::move(ipar));
+    createAndAddFloatParameter(layout, ParamIDs::screenChangeRate, "Grain autoselect rate", 0.1, 2.0,
+                               0.1, 0.5);
     return layout;
 }
 
@@ -163,6 +167,10 @@ void VintageGranularAudioProcessor::processBlock(juce::AudioBuffer<float> &buffe
     m_eng.setGlobalTranspose(gtranspose);
     float gdur = *m_apvts.getRawParameterValue(ParamIDs::mainGrainDur);
     m_eng.setDurationScaling(gdur);
+    int screenmode = *m_apvts.getRawParameterValue(ParamIDs::screenSelect);
+    m_eng.setScreenOrSelectMode(screenmode);
+    float selrate = *m_apvts.getRawParameterValue(ParamIDs::screenChangeRate);
+    m_eng.setAutoScreenSelectRate(selrate);
     for (int i = 0; i < buffer.getNumSamples(); ++i)
     {
         float outframe[2];

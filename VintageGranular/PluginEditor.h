@@ -20,6 +20,10 @@ class GrainScreenComponent : public juce::Component, public juce::Timer
     {
         auto &geng = m_proc.m_eng;
         g.fillAll(juce::Colours::black);
+        g.setColour(juce::Colours::yellow);
+        g.setFont(60.0);
+        g.drawText(juce::String(geng.getCurrentlyPlayingScreen()), 0, 0, getWidth(), getHeight(),
+                   juce::Justification::centred);
         g.setColour(juce::Colours::white);
 
         GrainVisualizationInfo grain;
@@ -39,13 +43,20 @@ class GrainScreenComponent : public juce::Component, public juce::Timer
             double ycor = juce::jmap<double>(i, 0, 4, 0.0, getHeight());
             g.drawLine(0, ycor, getWidth(), ycor);
         }
+        g.setColour(juce::Colours::green.withAlpha(0.5f));
+        double cpuload = m_proc.m_cpu_load.getLoadAsProportion();
+        cpuload = juce::jmap<double>(cpuload, 0.0, 1.0, 0, getWidth() / 2.0);
+        g.drawRect(1, 1, 500, 15);
+        g.fillRect(1, 1, cpuload, 15);
     }
     void mouseDown(const juce::MouseEvent &ev) override
     {
+        /*
         auto &geng = m_proc.m_eng;
         int screentouse = geng.m_cur_screen;
         screentouse = (screentouse + 1) % 8;
         geng.m_cur_screen = screentouse;
+        */
     }
 
   private:
