@@ -17,7 +17,8 @@ VintageGranularAudioProcessor::createParameters()
 {
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
     createAndAddFloatParameter(layout, "MAINVOLUME", "Main volume", -48.0, 0.0, 0.5, -24.0);
-
+    createAndAddFloatParameter(layout, "MAINDENSITY", "Density scaling", 0.5, 2.0, 0.01, 1.0);
+    createAndAddFloatParameter(layout, "MAINTRANSPOSE", "Global transpose", -24.0, 24.0, 0.5, 0.0);
     return layout;
 }
 
@@ -152,6 +153,10 @@ void VintageGranularAudioProcessor::processBlock(juce::AudioBuffer<float> &buffe
     auto bufs = buffer.getArrayOfWritePointers();
     float mainvol = *m_apvts.getRawParameterValue("MAINVOLUME");
     float gainscaler = juce::Decibels::decibelsToGain(mainvol);
+    float maindensity = *m_apvts.getRawParameterValue("MAINDENSITY");
+    m_eng.setDensityScaling(maindensity);
+    float gtranspose = *m_apvts.getRawParameterValue("MAINTRANSPOSE");
+    m_eng.setGlobalTranspose(gtranspose);
     for (int i = 0; i < buffer.getNumSamples(); ++i)
     {
         float outframe[2];

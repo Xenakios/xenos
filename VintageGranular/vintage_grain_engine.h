@@ -130,31 +130,18 @@ class XenGrainStream
     void initVoice(XenGrainVoice &v)
     {
         std::uniform_real_distribution<float> dist{0.0f, 1.0f};
-        float pitch = juce::jmap<float>(dist(m_rng), 0.0f, 1.0f, m_min_pitch, m_max_pitch);
+        double pitch = juce::jmap<float>(dist(m_rng), 0.0f, 1.0f, m_min_pitch, m_max_pitch);
+        pitch += m_global_transpose;
         pitch += m_pitch_mod_amount;
-        float hz = 440.0f;
+        pitch = juce::jlimit(m_min_pitch,m_max_pitch,pitch);
+        double hz = 440.0f;
         if (!m_use_tuning)
             hz = 440.0 * std::pow(2.0f, 1.0 / 12 * (pitch - 69.0));
         else
         {
-            int sanity = 0;
-            while (true)
-            {
-                pitch = juce::jmap<float>(dist(m_rng), 0.0f, 1.0f, m_min_pitch, m_max_pitch);
-
-                hz = m_tuning->frequencyForMidiNote(pitch);
-                pitch = 12.0 * std::log(hz / 16.0);
-                if (hz > 20.0f && hz <= 7500.0)
-                    break;
-                /*
-                ++sanity;
-                if (sanity > 100)
-                {
-                    hz = 440.0 * std::pow(2.0f, 1.0 / 12 * (pitch - 69.0));
-                    break;
-                }
-                */
-            }
+            pitch = juce::jmap<float>(dist(m_rng), 0.0f, 1.0f, m_min_pitch, m_max_pitch);
+            hz = m_tuning->frequencyForMidiNote(pitch);
+            pitch = 12.0 * std::log(hz / 16.0);
         }
 
         jassert(hz > 16.0 && hz < 20000.0);
@@ -191,6 +178,7 @@ class XenGrainStream
 
     int m_stream_id = -1;
     float m_pitch_mod_amount = 0.0;
+    float m_global_transpose = 0.0f;
     void processFrame(float *outframe)
     {
         if (!m_is_playing)
@@ -240,13 +228,15 @@ class XenGrainStream
     }
     double m_phase = 0;
     double m_next_grain_time = 0;
+    float m_density_scaling = 1.0f;
     Tunings::Tuning *m_tuning = nullptr;
 };
 
 class XenVintageGranular
 {
     double m_sr = 44100.0;
-
+    float m_density_scaling = 1.0f;
+    float m_global_transpose = 0.0f;
   public:
     std::array<XenGrainStream, 20> m_streams;
     VisualizerFifoType m_grains_to_gui_fifo;
@@ -257,6 +247,14 @@ class XenVintageGranular
     float m_min_pitch = 24.0;
     float m_max_pitch = 115.0;
     bool m_use_tuning = false;
+    void setDensityScaling(float x)
+    {
+        m_density_scaling = x;
+    }
+    void setGlobalTranspose(float x)
+    {
+        m_global_transpose = x;
+    }
     void updatePitchLimits()
     {
         if (!m_use_tuning)
@@ -355,6 +353,7 @@ class XenVintageGranular
                 float density = m_screensdata[screentouse][i][j];
                 if (density > 0.0)
                 {
+                    density *= m_density_scaling;
                     density = std::pow(M_E, density);
                     // hopefully find available stream...
                     bool streamfound = false;
@@ -394,6 +393,7 @@ class XenVintageGranular
             m_lfo1.process_block(3.0, 0.6, LFOType::Shape::SMOOTH_NOISE);
             for (auto &stream : m_streams)
             {
+                stream.m_global_transpose = m_global_transpose;
                 stream.m_pitch_mod_amount = 0.0;
                 if (stream.m_screen_x % 2 == 0)
                     stream.m_pitch_mod_amount = 1.0 * m_lfo0.outputBlock[0];
