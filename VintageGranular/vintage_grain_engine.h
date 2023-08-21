@@ -148,13 +148,17 @@ class XenGrainStream
         float vol = juce::jmap<float>(dist(m_rng), 0.0f, 1.0f, m_min_volume, m_max_volume);
         float gain = juce::Decibels::decibelsToGain(vol);
         float pan = dist(m_rng);
-        v.startGrain(m_sr, hz, gain, m_grain_dur, pan);
+        v.startGrain(m_sr, hz, gain, m_grain_dur * m_dur_multiplier, pan);
         if (m_grains_to_gui_fifo)
             m_grains_to_gui_fifo->push({pitch, vol});
     }
     juce::ADSR m_adsr;
     int m_screen_x = 0;
     int m_screen_y = 0;
+    float m_density_multiplier = 1.0;
+    void setDensityMultiplier(float x) { m_density_multiplier = x; }
+    float m_dur_multiplier = 1.0f;
+    void setDurationMultiplier(float x) { m_dur_multiplier = x; }
     void startStream(float rate, float minpitch, float maxpitch, float minvolume, float maxvolume,
                      float mingraindur, float maxgraindur, int screenX, int screenY)
     {
@@ -197,7 +201,7 @@ class XenGrainStream
                     break;
                 }
             }
-            std::exponential_distribution<float> expdist(m_grain_rate);
+            std::exponential_distribution<float> expdist(m_grain_rate * m_density_multiplier);
             m_next_grain_time = m_phase + expdist(m_rng) * m_sr;
             // m_next_grain_time = m_phase + ((1.0 / m_grain_rate) * m_sr);
         }
@@ -264,8 +268,22 @@ class XenVintageGranular
             s.setDistortionAmount(amt);
         }
     }
-    void setDensityScaling(float x) { m_density_scaling = x; }
-    void setDurationScaling(float x) { m_global_durations = x; }
+    void setDensityScaling(float x)
+    {
+        m_density_scaling = x;
+        for (auto &s : m_streams)
+        {
+            s.setDensityMultiplier(x);
+        }
+    }
+    void setDurationScaling(float x)
+    {
+        m_global_durations = x;
+        for (auto &s : m_streams)
+        {
+            s.setDurationMultiplier(x);
+        }
+    }
     void setGlobalTranspose(float x) { m_global_transpose = x; }
     void setAutoScreenSelectRate(float seconds)
     {
@@ -403,7 +421,6 @@ class XenVintageGranular
                 float density = m_screensdata[screentouse][i][j];
                 if (density > 0.0)
                 {
-                    density *= m_density_scaling;
                     density = std::pow(M_E, density);
                     // hopefully find available stream...
                     bool streamfound = false;
@@ -419,7 +436,6 @@ class XenVintageGranular
                             float maxvol = -40.0 + volwidth * (j + 1);
                             float graindur =
                                 juce::jmap<float>(minpitch, m_min_pitch, m_max_pitch, 0.15, 0.025);
-                            graindur *= m_global_durations;
                             stream.startStream(density, minpitch, maxpitch, minvol, maxvol,
                                                graindur, 0.05, i, j);
                             streamfound = true;
