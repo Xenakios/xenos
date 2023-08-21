@@ -4,11 +4,12 @@
 using jnr = juce::NormalisableRange<float>;
 
 inline void createAndAddFloatParameter(juce::AudioProcessorValueTreeState::ParameterLayout &layout,
-                                       juce::String paramid, juce::String displayname, float minval,
-                                       float maxval, float step, float defaultval)
+                                       const juce::Identifier &paramid, juce::String displayname,
+                                       float minval, float maxval, float step, float defaultval)
 {
     auto fpar = std::make_unique<juce::AudioParameterFloat>(
-        juce::ParameterID(paramid, 1), displayname, jnr(minval, maxval, step), defaultval);
+        juce::ParameterID(paramid.toString(), 1), displayname, jnr(minval, maxval, step),
+        defaultval);
     layout.add(std::move(fpar));
 }
 
@@ -16,9 +17,13 @@ juce::AudioProcessorValueTreeState::ParameterLayout
 VintageGranularAudioProcessor::createParameters()
 {
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
-    createAndAddFloatParameter(layout, "MAINVOLUME", "Main volume", -48.0, 0.0, 0.5, -24.0);
-    createAndAddFloatParameter(layout, "MAINDENSITY", "Density scaling", 0.5, 2.0, 0.01, 1.0);
-    createAndAddFloatParameter(layout, "MAINTRANSPOSE", "Global transpose", -24.0, 24.0, 0.5, 0.0);
+    createAndAddFloatParameter(layout, ParamIDs::mainVolume, "Main volume", -48.0, 0.0, 0.5, -24.0);
+    createAndAddFloatParameter(layout, ParamIDs::mainDensity, "Density scaling", 0.5, 2.0, 0.01,
+                               1.0);
+    createAndAddFloatParameter(layout, ParamIDs::mainTranspose, "Global transpose", -24.0, 24.0,
+                               0.5, 0.0);
+    createAndAddFloatParameter(layout, ParamIDs::mainGrainDur, "Grain duration scaling", 0.1, 2.0,
+                               0.01, 1.0);
     return layout;
 }
 
@@ -150,12 +155,14 @@ void VintageGranularAudioProcessor::processBlock(juce::AudioBuffer<float> &buffe
         buffer.clear(i, 0, buffer.getNumSamples());
 
     auto bufs = buffer.getArrayOfWritePointers();
-    float mainvol = *m_apvts.getRawParameterValue("MAINVOLUME");
+    float mainvol = *m_apvts.getRawParameterValue(ParamIDs::mainVolume);
     float gainscaler = juce::Decibels::decibelsToGain(mainvol);
-    float maindensity = *m_apvts.getRawParameterValue("MAINDENSITY");
+    float maindensity = *m_apvts.getRawParameterValue(ParamIDs::mainDensity);
     m_eng.setDensityScaling(maindensity);
-    float gtranspose = *m_apvts.getRawParameterValue("MAINTRANSPOSE");
+    float gtranspose = *m_apvts.getRawParameterValue(ParamIDs::mainTranspose);
     m_eng.setGlobalTranspose(gtranspose);
+    float gdur = *m_apvts.getRawParameterValue(ParamIDs::mainGrainDur);
+    m_eng.setDurationScaling(gdur);
     for (int i = 0; i < buffer.getNumSamples(); ++i)
     {
         float outframe[2];

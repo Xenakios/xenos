@@ -237,7 +237,7 @@ class XenVintageGranular
     double m_sr = 44100.0;
     float m_density_scaling = 1.0f;
     float m_global_transpose = 0.0f;
-
+    float m_global_durations = 1.0f;
   public:
     std::array<XenGrainStream, 20> m_streams;
     VisualizerFifoType m_grains_to_gui_fifo;
@@ -249,6 +249,7 @@ class XenVintageGranular
     float m_max_pitch = 115.0;
     bool m_use_tuning = false;
     void setDensityScaling(float x) { m_density_scaling = x; }
+    void setDurationScaling(float x) { m_global_durations = x; }
     void setGlobalTranspose(float x) { m_global_transpose = x; }
     void updatePitchLimits()
     {
@@ -364,6 +365,7 @@ class XenVintageGranular
                             float maxvol = -40.0 + volwidth * (j + 1);
                             float graindur =
                                 juce::jmap<float>(minpitch, m_min_pitch, m_max_pitch, 0.15, 0.025);
+                            graindur *= m_global_durations;
                             stream.startStream(density, minpitch, maxpitch, minvol, maxvol,
                                                graindur, 0.05, i, j);
                             streamfound = true;

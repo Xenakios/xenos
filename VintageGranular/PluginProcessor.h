@@ -7,6 +7,14 @@
 #include "vintage_grain_engine.h"
 #include "foleys_gui_magic/foleys_gui_magic.h"
 
+namespace ParamIDs
+{
+static const juce::Identifier mainVolume{"MAINVOLUME"};
+static const juce::Identifier mainDensity{"MAINDENSITY"};
+static const juce::Identifier mainTranspose{"MAINTRANSPOSE"};
+static const juce::Identifier mainGrainDur{"MAINDURATIONSCALE"};
+} // namespace ParamIDs
+
 class VintageGranularAudioProcessor : public foleys::MagicProcessor
 {
   public:
