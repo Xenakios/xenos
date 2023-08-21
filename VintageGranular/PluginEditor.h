@@ -26,12 +26,13 @@ class GrainScreenComponent : public juce::Component, public juce::Timer
                    juce::Justification::centred);
         g.setColour(juce::Colours::white);
 
+        float grainRadius = 5.0f;
         GrainVisualizationInfo grain;
         while (geng.m_grains_to_gui_fifo.pop(grain))
         {
             double xcor = juce::jmap<double>(grain.pitch, 24.0, 115.0, 0, getWidth());
             double ycor = juce::jmap<double>(grain.volume, -40.0, 0.0, getHeight(), 0);
-            g.fillEllipse(xcor, ycor, 5, 5);
+            g.fillEllipse(xcor-grainRadius/2, ycor-grainRadius/2, grainRadius, grainRadius);
         }
 
         for (int i = 0; i < 17; ++i)

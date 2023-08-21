@@ -28,6 +28,8 @@ VintageGranularAudioProcessor::createParameters()
     layout.add(std::move(ipar));
     createAndAddFloatParameter(layout, ParamIDs::screenChangeRate, "Grain autoselect rate", 0.1, 2.0,
                                0.1, 0.5);
+    createAndAddFloatParameter(layout, ParamIDs::distortionAmount, "Distortion", 0.0, 1.0,
+                               0.01, 0.5);
     return layout;
 }
 
@@ -171,6 +173,8 @@ void VintageGranularAudioProcessor::processBlock(juce::AudioBuffer<float> &buffe
     m_eng.setScreenOrSelectMode(screenmode);
     float selrate = *m_apvts.getRawParameterValue(ParamIDs::screenChangeRate);
     m_eng.setAutoScreenSelectRate(selrate);
+    float dist = *m_apvts.getRawParameterValue(ParamIDs::distortionAmount);
+    m_eng.setDistortionAmount(dist);
     for (int i = 0; i < buffer.getNumSamples(); ++i)
     {
         float outframe[2];

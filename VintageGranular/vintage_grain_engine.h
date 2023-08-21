@@ -133,7 +133,7 @@ class XenGrainStream
         double pitch = juce::jmap<float>(dist(m_rng), 0.0f, 1.0f, m_min_pitch, m_max_pitch);
         pitch += m_global_transpose;
         pitch += m_pitch_mod_amount;
-        pitch = juce::jlimit(m_min_pitch, m_max_pitch, pitch);
+        pitch = juce::jlimit(24.0, 115.0, pitch);
         double hz = 440.0f;
         if (!m_use_tuning)
             hz = 440.0 * std::pow(2.0f, 1.0 / 12 * (pitch - 69.0));
@@ -223,12 +223,16 @@ class XenGrainStream
         }
 
         m_phase += 1.0;
-        outframe[0] = std::tanh(voicesums[0]);
-        outframe[1] = std::tanh(voicesums[1]);
+        float distorted0 = std::tanh(voicesums[0] * 2);
+        float distorted1 = std::tanh(voicesums[1] * 2);
+        outframe[0] = (1.0 - m_distortion_amount) * voicesums[0] + m_distortion_amount * distorted0;
+        outframe[1] = (1.0 - m_distortion_amount) * voicesums[1] + m_distortion_amount * distorted1;
     }
     double m_phase = 0;
     double m_next_grain_time = 0;
     float m_density_scaling = 1.0f;
+    float m_distortion_amount = 0.5f;
+    void setDistortionAmount(float amt) { m_distortion_amount = amt; }
     Tunings::Tuning *m_tuning = nullptr;
 };
 
@@ -253,6 +257,13 @@ class XenVintageGranular
     float m_min_pitch = 24.0;
     float m_max_pitch = 115.0;
     bool m_use_tuning = false;
+    void setDistortionAmount(float amt)
+    {
+        for (auto &s : m_streams)
+        {
+            s.setDistortionAmount(amt);
+        }
+    }
     void setDensityScaling(float x) { m_density_scaling = x; }
     void setDurationScaling(float x) { m_global_durations = x; }
     void setGlobalTranspose(float x) { m_global_transpose = x; }
@@ -368,10 +379,10 @@ class XenVintageGranular
         int screentouse = m_cur_active_screen;
         if (m_screen_select_mode == 0)
         {
-            jassert(m_switch_to_screen>=0);
+            jassert(m_switch_to_screen >= 0);
             screentouse = m_switch_to_screen;
         }
-            
+
         if (m_screen_select_mode == 1)
             screentouse = screendist(m_rng);
         if (m_screen_select_mode == 2)
