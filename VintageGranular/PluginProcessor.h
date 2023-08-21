@@ -48,7 +48,8 @@ class VintageGranularAudioProcessor : public foleys::MagicProcessor
     XenVintageGranular m_eng{9999};
     juce::AudioProcessLoadMeasurer m_cpu_load;
     juce::AudioProcessorValueTreeState m_apvts;
-    void initialiseBuilder (foleys::MagicGUIBuilder& builder) override;
+    void initialiseBuilder(foleys::MagicGUIBuilder &builder) override;
+
   private:
     juce::AudioProcessorValueTreeState::ParameterLayout createParameters();
     //==============================================================================

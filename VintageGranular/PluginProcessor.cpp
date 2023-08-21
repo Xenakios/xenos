@@ -39,13 +39,12 @@ VintageGranularAudioProcessor::VintageGranularAudioProcessor()
 
 VintageGranularAudioProcessor::~VintageGranularAudioProcessor() {}
 
-void VintageGranularAudioProcessor::initialiseBuilder (foleys::MagicGUIBuilder& builder)
+void VintageGranularAudioProcessor::initialiseBuilder(foleys::MagicGUIBuilder &builder)
 {
     builder.registerJUCEFactories();
     builder.registerJUCELookAndFeels();
 
     builder.registerFactory("GrainVisualizer", &GrainVisualizerItem::factory);
-
 }
 
 //==============================================================================
