@@ -24,12 +24,16 @@ VintageGranularAudioProcessor::createParameters()
                                0.5, 0.0);
     createAndAddFloatParameter(layout, ParamIDs::mainGrainDur, "Grain duration scaling", 0.1, 2.0,
                                0.01, 1.0);
-    auto ipar = std::make_unique<juce::AudioParameterInt>(ParamIDs::screenSelect.toString(), "Screen select", -2, 7, -2);
+    auto ipar = std::make_unique<juce::AudioParameterInt>(ParamIDs::screenSelect.toString(),
+                                                          "Screen select", -2, 7, -2);
     layout.add(std::move(ipar));
-    createAndAddFloatParameter(layout, ParamIDs::screenChangeRate, "Grain autoselect rate", 0.1, 2.0,
-                               0.1, 0.5);
-    createAndAddFloatParameter(layout, ParamIDs::distortionAmount, "Distortion", 0.0, 1.0,
-                               0.01, 0.5);
+    createAndAddFloatParameter(layout, ParamIDs::screenChangeRate, "Grain autoselect rate", 0.1,
+                               2.0, 0.1, 0.5);
+    createAndAddFloatParameter(layout, ParamIDs::distortionAmount, "Distortion", 0.0, 1.0, 0.01,
+                               0.5);
+    createAndAddFloatParameter(layout, ParamIDs::grainPitchRandom0, "Grain pitch random 0", 0.0,
+                               1.0, 0.01, 1.0);
+
     return layout;
 }
 
@@ -175,6 +179,8 @@ void VintageGranularAudioProcessor::processBlock(juce::AudioBuffer<float> &buffe
     m_eng.setAutoScreenSelectRate(selrate);
     float dist = *m_apvts.getRawParameterValue(ParamIDs::distortionAmount);
     m_eng.setDistortionAmount(dist);
+    float gprand0 = *m_apvts.getRawParameterValue(ParamIDs::grainPitchRandom0);
+    m_eng.setPitchRandomParameter(0, gprand0);
     for (int i = 0; i < buffer.getNumSamples(); ++i)
     {
         float outframe[2];

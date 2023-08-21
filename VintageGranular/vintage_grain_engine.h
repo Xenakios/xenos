@@ -130,7 +130,13 @@ class XenGrainStream
     void initVoice(XenGrainVoice &v)
     {
         std::uniform_real_distribution<float> dist{0.0f, 1.0f};
-        double pitch = juce::jmap<float>(dist(m_rng), 0.0f, 1.0f, m_min_pitch, m_max_pitch);
+        float pitchrange = m_max_pitch - m_min_pitch;
+        float centerpitch = m_min_pitch + (pitchrange / 2.0f);
+        float pitchmintouse =
+            juce::jmap<float>(m_pitch_rand_par0, 0.0f, 1.0f, centerpitch, m_min_pitch);
+        float pitchmaxtouse =
+            juce::jmap<float>(m_pitch_rand_par0, 0.0f, 1.0f, centerpitch, m_max_pitch);
+        double pitch = juce::jmap<float>(dist(m_rng), 0.0f, 1.0f, pitchmintouse, pitchmaxtouse);
         pitch += m_global_transpose;
         pitch += m_pitch_mod_amount;
         pitch = juce::jlimit(24.0, 115.0, pitch);
@@ -159,6 +165,8 @@ class XenGrainStream
     void setDensityMultiplier(float x) { m_density_multiplier = x; }
     float m_dur_multiplier = 1.0f;
     void setDurationMultiplier(float x) { m_dur_multiplier = x; }
+    float m_pitch_rand_par0 = 1.0;
+    void setPitchRandomParameter(int index, float x) { m_pitch_rand_par0 = x; }
     void startStream(float rate, float minpitch, float maxpitch, float minvolume, float maxvolume,
                      float mingraindur, float maxgraindur, int screenX, int screenY)
     {
@@ -284,6 +292,13 @@ class XenVintageGranular
             s.setDurationMultiplier(x);
         }
     }
+    void setPitchRandomParameter(int index, float x)
+    {
+        for (auto &s : m_streams)
+        {
+            s.setPitchRandomParameter(index, x);
+        }
+    }
     void setGlobalTranspose(float x) { m_global_transpose = x; }
     void setAutoScreenSelectRate(float seconds)
     {
@@ -397,8 +412,8 @@ class XenVintageGranular
         int screentouse = m_cur_active_screen;
         if (m_screen_select_mode == 0)
         {
-            jassert(m_switch_to_screen >= 0);
-            screentouse = m_switch_to_screen;
+            if (m_switch_to_screen>=0)
+                screentouse = m_switch_to_screen;
         }
 
         if (m_screen_select_mode == 1)
