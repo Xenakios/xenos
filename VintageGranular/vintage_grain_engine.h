@@ -412,7 +412,7 @@ class XenVintageGranular
         int screentouse = m_cur_active_screen;
         if (m_screen_select_mode == 0)
         {
-            if (m_switch_to_screen>=0)
+            if (m_switch_to_screen >= 0)
                 screentouse = m_switch_to_screen;
         }
 
@@ -479,9 +479,9 @@ class XenVintageGranular
                 stream.m_global_transpose = m_global_transpose;
                 stream.m_pitch_mod_amount = 0.0;
                 if (stream.m_screen_x % 2 == 0)
-                    stream.m_pitch_mod_amount = 1.0 * m_lfo0.outputBlock[0];
+                    stream.m_pitch_mod_amount = m_lfo0depth * 1.0 * m_lfo0.outputBlock[0];
                 if (stream.m_screen_x % 2 == 1)
-                    stream.m_pitch_mod_amount = 6.0 * m_lfo1.outputBlock[0];
+                    stream.m_pitch_mod_amount = m_lfo0depth * m_lfo1.outputBlock[0];
             }
         }
         ++m_lfo_update_counter;
@@ -511,4 +511,6 @@ class XenVintageGranular
     LFOType m_lfo0{&m_sr_provider};
     LFOType m_lfo1{&m_sr_provider};
     int m_lfo_update_counter = 0;
+    float m_lfo0depth = 0.0f;
+    void setLFODepth(int index, float val) { m_lfo0depth = val; }
 };

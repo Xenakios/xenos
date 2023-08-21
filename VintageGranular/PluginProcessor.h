@@ -17,6 +17,7 @@ static const juce::Identifier screenSelect{"SCREENSELECT"};
 static const juce::Identifier screenChangeRate{"SCREENSELECTSPEED"};
 static const juce::Identifier distortionAmount{"DISTORTIONAMOUNT"};
 static const juce::Identifier grainPitchRandom0{"GRAINPITCHRANDOM0"};
+static const juce::Identifier pitchLFO0Amount{"PITCHLFO0AMOUNT"};
 } // namespace ParamIDs
 
 class VintageGranularAudioProcessor : public foleys::MagicProcessor
