@@ -302,6 +302,8 @@ class XenVintageGranular
     void setGlobalTranspose(float x) { m_global_transpose = x; }
     void setAutoScreenSelectRate(float seconds)
     {
+        m_screendur = seconds;
+        return;
         if (std::abs(seconds - m_screendur) > 0.01)
         {
             m_screendur = seconds;
@@ -465,10 +467,11 @@ class XenVintageGranular
     }
     void process(float *outframe)
     {
-        if (m_phase == 0.0)
+        if (m_phase_resetted)
         {
             // std::cout << "updating streams\n";
             updateStreams();
+            m_phase_resetted = false;
         }
         if (m_lfo_update_counter == 0)
         {
@@ -500,12 +503,17 @@ class XenVintageGranular
                 outframe[1] += streamframe[1];
             }
         }
-        m_phase += 1.0;
-        if (m_phase >= m_sr * m_screendur)
-            m_phase = 0.0;
+        double hz = 1.0 / m_screendur;
+        m_phase += 1.0 / m_sr * hz;
+        if (m_phase >= 1.0)
+        {
+            m_phase -= 1.0;
+            m_phase_resetted = true;
+        }
+            
     }
     double m_phase = 0.0;
-
+    bool m_phase_resetted = true;
     SRProvider m_sr_provider;
     using LFOType = sst::basic_blocks::modulators::SimpleLFO<SRProvider, 32>;
     LFOType m_lfo0{&m_sr_provider};
