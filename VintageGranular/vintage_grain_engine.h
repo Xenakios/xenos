@@ -132,19 +132,28 @@ class XenGrainStream
     }
     bool isAvailable() const { return !m_is_playing; }
     bool m_use_tuning = false;
+    void setPitchRange(float minpitch, float maxpitch)
+    {
+        m_min_pitch = minpitch;
+        m_max_pitch = maxpitch;
+    }
+
     void initVoice(XenGrainVoice &v)
     {
         std::uniform_real_distribution<float> dist{0.0f, 1.0f};
         float pitchrange = m_max_pitch - m_min_pitch;
-        float centerpitch = m_min_pitch + (pitchrange / 2.0f);
+        float regionpitchmin = m_min_pitch + (pitchrange / 16.0) * m_screen_x;
+        float regionpitchmax = m_min_pitch + (pitchrange / 16.0) * (m_screen_x + 1);
+        float regionpitchrange = regionpitchmax - regionpitchmin;
+        float centerpitch = regionpitchmin + (regionpitchrange / 2.0f);
         float pitchmintouse =
-            juce::jmap<float>(m_pitch_rand_par0, 0.0f, 1.0f, centerpitch, m_min_pitch);
+            juce::jmap<float>(m_pitch_rand_par0, 0.0f, 1.0f, centerpitch, regionpitchmin);
         float pitchmaxtouse =
-            juce::jmap<float>(m_pitch_rand_par0, 0.0f, 1.0f, centerpitch, m_max_pitch);
+            juce::jmap<float>(m_pitch_rand_par0, 0.0f, 1.0f, centerpitch, regionpitchmax);
         double pitch = juce::jmap<float>(dist(m_rng), 0.0f, 1.0f, pitchmintouse, pitchmaxtouse);
         pitch += m_global_transpose;
         pitch += m_pitch_mod_amount;
-        pitch = juce::jlimit(24.0, 115.0, pitch);
+        pitch = juce::jlimit(12.0, 120.0, pitch);
         double hz = 440.0f;
         if (!m_use_tuning)
             hz = 440.0 * std::pow(2.0f, 1.0 / 12 * (pitch - 69.0));
@@ -155,7 +164,7 @@ class XenGrainStream
             pitch = 12.0 * std::log(hz / 16.0);
         }
 
-        jassert(hz > 16.0 && hz < 20000.0);
+        jassert(hz >= 15.0 && hz < 20000.0);
         float vol = juce::jmap<float>(dist(m_rng), 0.0f, 1.0f, m_min_volume, m_max_volume);
         float gain = juce::Decibels::decibelsToGain(vol);
         float pan = dist(m_rng);
@@ -461,6 +470,17 @@ class XenVintageGranular
             }
         }
     }
+    int m_num_pitch_regions = 16;
+    void setPitchRange(float minpitch, float maxpitch)
+    {
+        m_min_pitch = minpitch;
+        m_max_pitch = maxpitch;
+        for (auto &s : m_streams)
+        {
+            s.setPitchRange(minpitch, maxpitch);
+        }
+    }
+    juce::Range<float> getPitchRange() const { return juce::Range(m_min_pitch, m_max_pitch); }
     void process(float *outframe)
     {
         if (m_phase_resetted)

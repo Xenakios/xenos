@@ -37,6 +37,10 @@ VintageGranularAudioProcessor::createParameters()
                                0.01, 0.0);
     createAndAddFloatParameter(layout, ParamIDs::pitchLFO1Amount, "Pitch LFO 2 depth", -1.0, 1.0,
                                0.01, 0.0);
+    createAndAddFloatParameter(layout, ParamIDs::globalMinPitch, "Main min pitch", 12.0, 54.0, 0.5,
+                               24.0);
+    createAndAddFloatParameter(layout, ParamIDs::globalMaxPitch, "Main max pitch", 66.0, 120.0, 0.5,
+                               115.0);
     return layout;
 }
 
@@ -188,6 +192,9 @@ void VintageGranularAudioProcessor::processBlock(juce::AudioBuffer<float> &buffe
     m_eng.setLFODepth(0, lfo0depth);
     float lfo1depth = *m_apvts.getRawParameterValue(ParamIDs::pitchLFO1Amount);
     m_eng.setLFODepth(1, lfo1depth);
+    float minpitch = *m_apvts.getRawParameterValue(ParamIDs::globalMinPitch);
+    float maxpitch = *m_apvts.getRawParameterValue(ParamIDs::globalMaxPitch);
+    m_eng.setPitchRange(minpitch, maxpitch);
     for (int i = 0; i < buffer.getNumSamples(); ++i)
     {
         float outframe[2];

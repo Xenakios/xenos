@@ -19,6 +19,8 @@ static const juce::Identifier distortionAmount{"DISTORTIONAMOUNT"};
 static const juce::Identifier grainPitchRandom0{"GRAINPITCHRANDOM0"};
 static const juce::Identifier pitchLFO0Amount{"PITCHLFO0AMOUNT"};
 static const juce::Identifier pitchLFO1Amount{"PITCHLFO1AMOUNT"};
+static const juce::Identifier globalMinPitch{"MAINMINPITCH"};
+static const juce::Identifier globalMaxPitch{"MAINMAXPITCH"};
 } // namespace ParamIDs
 
 class VintageGranularAudioProcessor : public foleys::MagicProcessor
