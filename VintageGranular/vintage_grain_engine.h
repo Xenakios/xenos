@@ -170,7 +170,9 @@ class XenGrainStream
         float pan = dist(m_rng);
         v.startGrain(m_sr, hz, gain, m_grain_dur * m_dur_multiplier, pan);
         if (m_visualization_enabled && m_grains_to_gui_fifo)
+        {
             m_grains_to_gui_fifo->push({pitch, vol});
+        }
     }
     juce::ADSR m_adsr;
     int m_screen_x = 0;
