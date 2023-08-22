@@ -169,7 +169,7 @@ class XenGrainStream
         float gain = juce::Decibels::decibelsToGain(vol);
         float pan = dist(m_rng);
         v.startGrain(m_sr, hz, gain, m_grain_dur * m_dur_multiplier, pan);
-        if (m_grains_to_gui_fifo)
+        if (m_visualization_enabled && m_grains_to_gui_fifo)
             m_grains_to_gui_fifo->push({pitch, vol});
     }
     juce::ADSR m_adsr;
@@ -249,8 +249,8 @@ class XenGrainStream
         }
 
         m_phase += 1.0;
-        float distorted0 = std::tanh(voicesums[0] * 2);
-        float distorted1 = std::tanh(voicesums[1] * 2);
+        float distorted0 = std::tanh(voicesums[0] * m_distortion_gain);
+        float distorted1 = std::tanh(voicesums[1] * m_distortion_gain);
         outframe[0] = (1.0 - m_distortion_amount) * voicesums[0] + m_distortion_amount * distorted0;
         outframe[1] = (1.0 - m_distortion_amount) * voicesums[1] + m_distortion_amount * distorted1;
     }
@@ -258,8 +258,21 @@ class XenGrainStream
     double m_next_grain_time = 0;
     float m_density_scaling = 1.0f;
     float m_distortion_amount = 0.5f;
-    void setDistortionAmount(float amt) { m_distortion_amount = amt; }
+    float m_distortion_gain = 2.0f;
+    void setDistortionAmount(float amt)
+    {
+        m_distortion_amount = amt;
+        if (m_distortion_amount < 0.25)
+            m_distortion_gain = 2.0f;
+        else
+        {
+            float distortion_volume =
+                juce::jmap<float>(m_distortion_amount, 0.25f, 1.0, 6.0f, 24.0f);
+            m_distortion_gain = juce::Decibels::decibelsToGain(distortion_volume);
+        }
+    }
     Tunings::Tuning *m_tuning = nullptr;
+    std::atomic<bool> m_visualization_enabled{false};
 };
 
 class XenVintageGranular
@@ -283,6 +296,13 @@ class XenVintageGranular
     float m_min_pitch = 24.0;
     float m_max_pitch = 115.0;
     bool m_use_tuning = false;
+    void setVisualizationEnabled(bool b)
+    {
+        for (auto &s : m_streams)
+        {
+            s.m_visualization_enabled = b;
+        }
+    }
     void setDistortionAmount(float amt)
     {
         for (auto &s : m_streams)

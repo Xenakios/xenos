@@ -14,7 +14,15 @@ class GrainScreenComponent : public juce::Component, public juce::Timer
         fillColourId
     };
 
-    GrainScreenComponent(VintageGranularAudioProcessor &p) : m_proc(p) { startTimerHz(10); }
+    GrainScreenComponent(VintageGranularAudioProcessor &p) : m_proc(p) 
+    { 
+        m_proc.m_eng.setVisualizationEnabled(true);
+        startTimerHz(10); 
+    }
+    ~GrainScreenComponent() override
+    {
+        m_proc.m_eng.setVisualizationEnabled(false);
+    }
     void timerCallback() override { repaint(); }
     void paint(juce::Graphics &g) override
     {
