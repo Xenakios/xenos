@@ -60,27 +60,31 @@ class XenGrainVoice
     {
         if (m_active)
             return;
-        m_phase = 0.0;
+        m_grain_phase = 0.0;
+        m_osc_phase = 0.0;
         m_sr = samplerate;
         m_dur = duration;
         m_hz = hz;
+        m_osc_phase_inc = 2 * M_PI / m_sr * m_hz;
         m_gain = gain;
         m_active = true;
         sst::basic_blocks::dsp::pan_laws::monoEqualPower(pan, panmatrix);
     }
+    double m_osc_phase_inc = 0.0;
     void processFrame(float *frame)
     {
-        float out = std::sin(2 * M_PI / m_sr * m_hz * m_phase);
+        float out = std::sin(m_osc_phase);
         out *= m_gain;
         double dursamples = m_dur * m_sr;
         double fadelen = dursamples * 0.1;
-        if (m_phase < fadelen)
-            out *= juce::jmap<double>(m_phase, 0.0, fadelen, 0.0, 1.0);
-        if (m_phase >= dursamples - fadelen)
-            out *= juce::jmap<double>(m_phase, dursamples - fadelen, dursamples, 1.0, 0.0);
-        m_phase += 1.0;
-        if (m_phase > dursamples)
+        if (m_grain_phase < fadelen)
+            out *= juce::jmap<double>(m_grain_phase, 0.0, fadelen, 0.0, 1.0);
+        if (m_grain_phase >= dursamples - fadelen)
+            out *= juce::jmap<double>(m_grain_phase, dursamples - fadelen, dursamples, 1.0, 0.0);
+        m_grain_phase += 1.0;
+        if (m_grain_phase > dursamples)
             m_active = false;
+        m_osc_phase += m_osc_phase_inc;
         frame[0] = panmatrix[0] * out;
         frame[1] = panmatrix[3] * out;
     }
@@ -89,7 +93,8 @@ class XenGrainVoice
     float m_gain = 0.5f;
     float m_dur = 0.1;
     float m_sr = 44100.0f;
-    double m_phase = 0.0;
+    double m_osc_phase = 0.0;
+    double m_grain_phase = 0.0;
 };
 
 class GrainVisualizationInfo
@@ -300,17 +305,7 @@ class XenVintageGranular
         }
     }
     void setGlobalTranspose(float x) { m_global_transpose = x; }
-    void setAutoScreenSelectRate(float seconds)
-    {
-        m_screendur = seconds;
-        return;
-        if (std::abs(seconds - m_screendur) > 0.01)
-        {
-            m_screendur = seconds;
-            if (m_phase >= m_screendur)
-                m_phase = 0.0;
-        }
-    }
+    void setAutoScreenSelectRate(float seconds) { m_screendur = seconds; }
     int getCurrentlyPlayingScreen() const { return m_cur_active_screen; }
     void setScreenOrSelectMode(int mode)
     {
@@ -354,6 +349,7 @@ class XenVintageGranular
     }
     XenVintageGranular(int seed)
     {
+        m_lfodepths = {0.0f, 0.0f};
         m_grains_to_gui_fifo.reset(16384);
         m_rng = std::mt19937(seed);
         m_tuning = Tunings::evenDivisionOfCentsByM(1200.0, 7);
@@ -482,9 +478,9 @@ class XenVintageGranular
                 stream.m_global_transpose = m_global_transpose;
                 stream.m_pitch_mod_amount = 0.0;
                 if (stream.m_screen_x % 2 == 0)
-                    stream.m_pitch_mod_amount = m_lfo0depth * 1.0 * m_lfo0.outputBlock[0];
+                    stream.m_pitch_mod_amount = m_lfodepths[0] * 6.0 * m_lfo0.outputBlock[0];
                 if (stream.m_screen_x % 2 == 1)
-                    stream.m_pitch_mod_amount = m_lfo0depth * m_lfo1.outputBlock[0];
+                    stream.m_pitch_mod_amount = m_lfodepths[1] * 6.0 * m_lfo1.outputBlock[0];
             }
         }
         ++m_lfo_update_counter;
@@ -510,7 +506,6 @@ class XenVintageGranular
             m_phase -= 1.0;
             m_phase_resetted = true;
         }
-            
     }
     double m_phase = 0.0;
     bool m_phase_resetted = true;
@@ -519,6 +514,7 @@ class XenVintageGranular
     LFOType m_lfo0{&m_sr_provider};
     LFOType m_lfo1{&m_sr_provider};
     int m_lfo_update_counter = 0;
-    float m_lfo0depth = 0.0f;
-    void setLFODepth(int index, float val) { m_lfo0depth = val; }
+    std::array<float, 2> m_lfodepths;
+
+    void setLFODepth(int index, float val) { m_lfodepths[index] = val; }
 };
