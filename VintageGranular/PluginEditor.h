@@ -14,19 +14,12 @@ class GrainScreenComponent : public juce::Component, public juce::Timer
         fillColourId
     };
 
-    GrainScreenComponent(VintageGranularAudioProcessor &p) : m_proc(p) 
-    { 
-        
-        startTimerHz(10); 
-    }
-    ~GrainScreenComponent() override
-    {
-        m_proc.m_eng.setVisualizationEnabled(false);
-    }
+    GrainScreenComponent(VintageGranularAudioProcessor &p) : m_proc(p) { startTimerHz(10); }
+    ~GrainScreenComponent() override { m_proc.m_eng.setVisualizationEnabled(false); }
     void timerCallback() override { repaint(); }
     void paint(juce::Graphics &g) override
     {
-        m_proc.m_eng.setVisualizationEnabled(true);
+        // m_proc.m_eng.setVisualizationEnabled(true);
         auto &geng = m_proc.m_eng;
         g.fillAll(juce::Colours::black);
         g.setColour(juce::Colours::yellow);
@@ -61,6 +54,7 @@ class GrainScreenComponent : public juce::Component, public juce::Timer
         g.drawRect(1, 1, 500, 15);
         g.fillRect(1, 1, cpuload, 15);
     }
+    void visibilityChanged() override { m_proc.m_eng.setVisualizationEnabled(isVisible()); }
     void mouseDown(const juce::MouseEvent &ev) override
     {
         /*
