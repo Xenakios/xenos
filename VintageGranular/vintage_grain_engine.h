@@ -7,6 +7,7 @@
 #include "sst/waveshapers.h"
 #include <algorithm>
 #include "sst/basic-blocks/modulators/SimpleLFO.h"
+#include "choc_SingleReaderSingleWriterFIFO.h"
 
 inline float softClip(float x)
 {

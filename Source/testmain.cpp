@@ -9,7 +9,6 @@
 #include "sst/basic-blocks/modulators/SimpleLFO.h"
 #include "../VintageGranular/vintage_grain_engine.h"
 
-
 static std::unique_ptr<juce::AudioFormatWriter> makeWavWriter(juce::File outfile, int chans,
                                                               double sr)
 {
@@ -98,7 +97,6 @@ void test_dropped_samples()
     writer->writeFromAudioSampleBuffer(outbuf, 0, outlen);
 }
 
-
 inline double calcMedian(std::vector<double> vec)
 {
     std::sort(vec.begin(), vec.end());
@@ -117,9 +115,8 @@ inline double millisecondsToPercentage(double samplerate, int buffersize, double
 
 inline void test_vintage_grains()
 {
-    std::mt19937 rng{9569};
     auto writer = makeWavWriter(juce::File("C:\\MusicAudio\\xenvintagegrain03.wav"), 2, 44100);
-    auto eng = std::make_unique<XenVintageGranular>(rng);
+    auto eng = std::make_unique<XenVintageGranular>(9569);
     double outlenseconds = 30.0;
     int outlen = outlenseconds * 44100;
     int procbufsize = 512;
@@ -176,6 +173,105 @@ void test_jsonparse()
     }
 }
 
+template<typename Func>
+struct GraphingOptions
+{
+    Func thef;
+    GraphingOptions() {}
+    GraphingOptions withFunction(Func f)
+    {
+        GraphingOptions result;
+        result.thef = f;
+        return result;
+    }
+};
+
+template <typename F>
+inline void graphFunction(F &&func, juce::Graphics &g, int destwidth, int destheigth,
+                          double funcrange_start, double funcrange_end, double func_y_range_start,
+                          double func_y_range_end)
+{
+    juce::Path path;
+    bool has_started = false;
+    for (int i = 0; i < destwidth; ++i)
+    {
+        double xcor = i;
+        double fx = juce::jmap<double>(i, 0, destwidth, funcrange_start, funcrange_end);
+        double fy = func(fx);
+        double ycor = juce::jmap<double>(fy, func_y_range_start, func_y_range_end, 0, destheigth);
+        if (std::isfinite(ycor))
+        {
+            if (!has_started)
+            {
+                path.startNewSubPath(xcor, ycor);
+                has_started = true;
+            }
+
+            else
+                path.lineTo(xcor, ycor);
+        }
+    }
+    g.strokePath(path, juce::PathStrokeType{1.0f});
+}
+
+inline void saveImageAsPNG(juce::Image &img, juce::File outfile, bool deleteExisting = true)
+{
+    juce::PNGImageFormat format;
+    if (deleteExisting)
+        outfile.deleteFile();
+    else
+        outfile = outfile.getNonexistentSibling();
+    auto ostream = outfile.createOutputStream();
+    format.writeImageToStream(img, *ostream);
+}
+
+inline void test_graphing()
+{
+    juce::ScopedJuceInitialiser_GUI ginit;
+    juce::Image img{juce::Image::PixelFormat::RGB, 1500, 700, true};
+    juce::Graphics g{img};
+    g.fillAll(juce::Colours::black);
+    g.setColour(juce::Colours::white);
+    graphFunction([](double x) { return std::sin(4.2 * std::sin(x * 1.13)); }, g, img.getWidth(),
+                  img.getHeight(), -6.2, 6.2, -1, 1);
+    juce::File outfile{R"(C:\Users\teemu\Pictures\graphtest.png)"};
+    saveImageAsPNG(img, outfile, false);
+}
+
+inline void test_uniform_distances()
+{
+    juce::ScopedJuceInitialiser_GUI ginit;
+    int numbins = 1001;
+    juce::Image img{juce::Image::PixelFormat::RGB, numbins, 700, true};
+    juce::Graphics g{img};
+    g.fillAll(juce::Colours::black);
+    g.setColour(juce::Colours::white);
+    std::mt19937 gen;
+    std::uniform_real_distribution<double> dist{0.0, 1.0};
+    int n = 10000000;
+
+    std::vector<int> histo;
+    histo.resize(numbins);
+    int maxbinvalue = 0;
+    for (int i = 0; i < n - 1; ++i)
+    {
+        double x0 = dist(gen);
+        double x1 = dist(gen);
+        double diff = x1 - x0;
+        int index = jmap<double>(diff, -1.0, 1.0, 0, histo.size() - 1);
+        jassert(index >= 0 && index < histo.size());
+        ++histo[index];
+        maxbinvalue = std::max(histo[index], maxbinvalue);
+    }
+    double scaler = (double)img.getHeight()/maxbinvalue;
+    for (int i = 0; i < histo.size(); ++i)
+    {
+        g.drawLine(i, img.getHeight(), i, img.getHeight() - histo[i] * scaler);
+    }
+    juce::File outfile{R"(C:\Users\teemu\Pictures\histotest.png)"};
+    saveImageAsPNG(img, outfile, true);
+}
+
 int main()
 {
     // test_sst_tuning();
@@ -183,7 +279,9 @@ int main()
     // test_shadowing();
     // test_dropped_samples();
     // test_xen_grains();
-    test_vintage_grains();
+    // test_vintage_grains();
     // test_jsonparse();
+    // test_graphing();
+    test_uniform_distances();
     return 0;
 }
