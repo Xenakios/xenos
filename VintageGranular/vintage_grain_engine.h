@@ -444,27 +444,30 @@ class XenVintageGranular
         std::cout << std::setprecision(2);
         for (int i = 0; i < allscreenssarray.size(); ++i)
         {
-            std::cout << "screen " << i << "\n";
+            // std::cout << "screen " << i << "\n";
             auto screenarray = allscreenssarray[i];
             for (int j = 0; j < 4; ++j)
             {
                 auto screenrow = screenarray[j];
                 auto rowstring = screenrow.toString();
-                std::cout << "\t";
+                // std::cout << "\t";
                 for (int k = 0; k < 16; ++k)
                 {
                     auto c = rowstring[k];
                     if (c != '.')
                     {
                         m_screensdata[i][k][3 - j] = c - 64;
-                        std::cout << std::pow(M_E, m_screensdata[i][k][3 - j]) << " ";
+                        // std::cout << std::pow(M_E, m_screensdata[i][k][3 - j]) << " ";
                     }
                     else
-                        std::cout << 0.0 << " ";
+                    {
+                        // std::cout << 0.0 << " ";
+                    }
                 }
-                std::cout << "\n";
+                // std::cout << "\n";
             }
         }
+        setScreenOrSelectMode(0);
     }
     std::mt19937 m_rng;
     void setSampleRate(double sr)

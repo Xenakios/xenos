@@ -8,6 +8,8 @@
 #include <algorithm>
 #include "sst/basic-blocks/modulators/SimpleLFO.h"
 #include "../VintageGranular/vintage_grain_engine.h"
+#include "choc_Assert.h"
+#include "choc_UnitTest.h"
 
 static std::unique_ptr<juce::AudioFormatWriter> makeWavWriter(juce::File outfile, int chans,
                                                               double sr)
@@ -271,8 +273,53 @@ inline void test_uniform_distances()
     saveImageAsPNG(img, outfile, true);
 }
 
+inline void vgBasicTests(choc::test::TestProgress &progress)
+{
+    {
+        // just check the engine can be created and destroyed
+        CHOC_TEST(VintageGranular creation / deletion);
+        try
+        {
+            auto vg = std::make_unique<XenVintageGranular>(7426);
+        }
+        catch (const std::exception &e)
+        {
+            CHOC_FAIL(e.what());
+        }
+    }
+    {
+        // We only test here that "some" sound is outputted with minimal setup,
+        // when we run for 2 seconds, not that it is "right" as such!
+        CHOC_TEST(VintageGranular outputs audio on start);
+        auto vg = std::make_unique<XenVintageGranular>(7426);
+        float sr = 44100;
+        float testlen = 2;
+        vg->setSampleRate(sr);
+        juce::AudioBuffer<float> buf(2, testlen * sr);
+        buf.clear();
+        float outframe[2];
+        for (int i = 0; i < buf.getNumSamples(); ++i)
+        {
+            vg->process(outframe);
+            buf.setSample(0, i, outframe[0]);
+            buf.setSample(1, i, outframe[1]);
+        }
+        float rms = buf.getRMSLevel(0, 0, buf.getNumSamples());
+        rms += buf.getRMSLevel(1, 0, buf.getNumSamples());
+        CHOC_EXPECT_TRUE(rms > 0.01f);
+    }
+}
+
+inline void runVintageGranularTests()
+{
+    choc::test::TestProgress progress;
+    CHOC_CATEGORY(VintageGranular basic tests);
+    vgBasicTests(progress);
+}
+
 int main()
 {
+    runVintageGranularTests();
     // test_sst_tuning();
     // test_xenoscore();
     // test_shadowing();
@@ -281,6 +328,6 @@ int main()
     // test_vintage_grains();
     // test_jsonparse();
     // test_graphing();
-    test_uniform_distances();
+    // test_uniform_distances();
     return 0;
 }
