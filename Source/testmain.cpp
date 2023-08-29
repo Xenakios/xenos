@@ -277,9 +277,10 @@ inline void vgBasicTests(choc::test::TestProgress &progress)
 {
     {
         // just check the engine can be created and destroyed
-        CHOC_TEST(VintageGranular creation / deletion);
+        CHOC_TEST(Create and destroy);
         try
         {
+            // heap allocation may be preferred as the object is kind of large
             auto vg = std::make_unique<XenVintageGranular>(7426);
         }
         catch (const std::exception &e)
@@ -290,14 +291,14 @@ inline void vgBasicTests(choc::test::TestProgress &progress)
     {
         // We only test here that "some" sound is outputted with minimal setup,
         // when we run for 2 seconds, not that it is "right" as such!
-        CHOC_TEST(VintageGranular outputs audio on start);
+        CHOC_TEST(Outputs audio with minimal setup);
         auto vg = std::make_unique<XenVintageGranular>(7426);
         float sr = 44100;
         float testlen = 2;
         vg->setSampleRate(sr);
         juce::AudioBuffer<float> buf(2, testlen * sr);
         buf.clear();
-        float outframe[2];
+        float outframe[2] = {0.0f, 0.0f};
         for (int i = 0; i < buf.getNumSamples(); ++i)
         {
             vg->process(outframe);
