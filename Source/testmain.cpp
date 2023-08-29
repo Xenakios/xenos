@@ -173,8 +173,7 @@ void test_jsonparse()
     }
 }
 
-template<typename Func>
-struct GraphingOptions
+template <typename Func> struct GraphingOptions
 {
     Func thef;
     GraphingOptions() {}
@@ -263,7 +262,7 @@ inline void test_uniform_distances()
         ++histo[index];
         maxbinvalue = std::max(histo[index], maxbinvalue);
     }
-    double scaler = (double)img.getHeight()/maxbinvalue;
+    double scaler = (double)img.getHeight() / maxbinvalue;
     for (int i = 0; i < histo.size(); ++i)
     {
         g.drawLine(i, img.getHeight(), i, img.getHeight() - histo[i] * scaler);

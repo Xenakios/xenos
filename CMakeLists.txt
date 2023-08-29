@@ -171,6 +171,11 @@ CXX_STANDARD_REQUIRED ON
 
 juce_add_console_app(ConsoleAppExample
 PRODUCT_NAME "Console App Example") 
+set_target_properties(ConsoleAppExample PROPERTIES
+CXX_STANDARD 20
+CXX_STANDARD_REQUIRED ON
+)
+
 
 target_sources(ConsoleAppExample
     PRIVATE

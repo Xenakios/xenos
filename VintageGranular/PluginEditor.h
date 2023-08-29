@@ -57,12 +57,12 @@ class GrainScreenComponent : public juce::Component, public juce::Timer
     void visibilityChanged() override { m_proc.m_eng.setVisualizationEnabled(isVisible()); }
     void mouseDown(const juce::MouseEvent &ev) override
     {
-        /*
         auto &geng = m_proc.m_eng;
-        int screentouse = geng.m_cur_screen;
-        screentouse = (screentouse + 1) % 8;
-        geng.m_cur_screen = screentouse;
-        */
+        if (!geng.isAutoScreenSelectActive())
+        {
+            geng.m_gui_to_audio_fifo.push({GuiToAudioActionType::ClearAllCells,
+                                           geng.getCurrentlyPlayingScreen(), 0, 0, 0.0f});
+        }
     }
 
   private:

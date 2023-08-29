@@ -107,10 +107,35 @@ class GrainVisualizationInfo
     double volume = 0.0;
 };
 
+enum class GuiToAudioActionType
+{
+    None,
+    ClearAllCells,
+    ChangeCellDensity,
+    Last
+};
+
+class GuiToAudioMessage
+{
+  public:
+    GuiToAudioMessage() {}
+    GuiToAudioMessage(GuiToAudioActionType act, int p0, int p1, int p2, float p3)
+        : m_act(act), m_par0(p0), m_par1(p1), m_par2(p2), m_par3(p3)
+    {
+    }
+    GuiToAudioActionType m_act = GuiToAudioActionType::None;
+    int m_par0 = 0;
+    int m_par1 = 0;
+    int m_par2 = 0;
+    float m_par3 = 0.0f;
+};
+
 using VisualizerFifoType = choc::fifo::SingleReaderSingleWriterFIFO<GrainVisualizationInfo>;
+using GuiToAudioFifoType = choc::fifo::SingleReaderSingleWriterFIFO<GuiToAudioMessage>;
 
 class XenGrainStream
 {
+
     double m_grain_rate = 0.0;
     double m_min_pitch = 24.0;
     double m_max_pitch = 100.0;
@@ -127,6 +152,7 @@ class XenGrainStream
     VisualizerFifoType *m_grains_to_gui_fifo = nullptr;
     XenGrainStream()
     {
+
         m_rng = std::minstd_rand0((unsigned int)this);
         m_adsr.setSampleRate(m_sr);
         m_adsr.setParameters({0.01, 0.01, 1.0, 0.3});
@@ -292,6 +318,7 @@ class XenVintageGranular
   public:
     std::array<XenGrainStream, 20> m_streams;
     VisualizerFifoType m_grains_to_gui_fifo;
+    GuiToAudioFifoType m_gui_to_audio_fifo;
     float m_screensdata[8][16][4];
     int m_maxscreen = 0;
     Tunings::Tuning m_tuning;
@@ -339,6 +366,7 @@ class XenVintageGranular
     void setGlobalTranspose(float x) { m_global_transpose = x; }
     void setAutoScreenSelectRate(float seconds) { m_screendur = seconds; }
     int getCurrentlyPlayingScreen() const { return m_cur_active_screen; }
+    bool isAutoScreenSelectActive() const { return m_screen_select_mode != 0; }
     void setScreenOrSelectMode(int mode)
     {
         if (mode >= 0 && mode < 8)
@@ -383,6 +411,7 @@ class XenVintageGranular
     {
         m_lfodepths = {0.0f, 0.0f};
         m_grains_to_gui_fifo.reset(16384);
+        m_gui_to_audio_fifo.reset(1024);
         m_rng = std::mt19937(seed);
         m_tuning = Tunings::evenDivisionOfCentsByM(1200.0, 7);
         updatePitchLimits();
@@ -508,7 +537,20 @@ class XenVintageGranular
     {
         if (m_phase_resetted)
         {
-            // std::cout << "updating streams\n";
+            GuiToAudioMessage msg;
+            while (m_gui_to_audio_fifo.pop(msg))
+            {
+                if (msg.m_act == GuiToAudioActionType::ClearAllCells)
+                {
+                    for (int i = 0; i < 16; ++i)
+                    {
+                        for (int j = 0; j < 4; ++j)
+                        {
+                            m_screensdata[msg.m_par0][i][j] = 0.0f;
+                        }
+                    }
+                }
+            }
             updateStreams();
             m_phase_resetted = false;
         }
