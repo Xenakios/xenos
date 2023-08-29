@@ -38,7 +38,28 @@ class GrainScreenComponent : public juce::Component, public juce::Timer
             double ycor = juce::jmap<double>(grain.volume, -40.0, 0.0, getHeight(), 0);
             g.fillEllipse(xcor - grainRadius / 2, ycor - grainRadius / 2, grainRadius, grainRadius);
         }
+        for (int i = 0; i < 16; ++i)
+        {
+            for (int j = 0; j < 4; ++j)
+            {
+                float xcor = getWidth() / 16.0 * i;
+                float ycor = getHeight() / 4.0 * j;
+                float w = getWidth() / 16.0;
+                float h = getHeight() / 4.0;
+                bool active = geng.m_screensdata[geng.getCurrentlyPlayingScreen()][i][3 - j] > 0.0f;
+                if (m_sel_cell_x == i && m_sel_cell_y == j)
+                {
+                    g.setColour(juce::Colours::cyan.withAlpha(0.5f));
+                    active = true;
+                }
+                else if (active)
+                    g.setColour(juce::Colours::cyan.withAlpha(0.2f));
+                if (active)
+                    g.fillRect(xcor, ycor, w, h);
+            }
+        }
 
+        g.setColour(juce::Colours::white);
         for (int i = 0; i < 17; ++i)
         {
             g.drawLine(getWidth() / 16.0 * i, 0.0, getWidth() / 16.0 * i, getHeight());
@@ -57,6 +78,9 @@ class GrainScreenComponent : public juce::Component, public juce::Timer
     void visibilityChanged() override { m_proc.m_eng.setVisualizationEnabled(isVisible()); }
     void mouseDown(const juce::MouseEvent &ev) override
     {
+        m_sel_cell_x = juce::jmap<float>(ev.x, 0, getWidth(), 0, 16);
+        m_sel_cell_y = juce::jmap<float>(ev.y, 0, getHeight(), 0, 4);
+        return;
         auto &geng = m_proc.m_eng;
         if (!geng.isAutoScreenSelectActive())
         {
@@ -67,6 +91,8 @@ class GrainScreenComponent : public juce::Component, public juce::Timer
 
   private:
     VintageGranularAudioProcessor &m_proc;
+    int m_sel_cell_x = -1;
+    int m_sel_cell_y = -1;
 };
 
 // This class is creating and configuring your custom component

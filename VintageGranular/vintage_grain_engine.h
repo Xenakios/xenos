@@ -310,7 +310,7 @@ class XenVintageGranular
     float m_density_scaling = 1.0f;
     float m_global_transpose = 0.0f;
     float m_global_durations = 1.0f;
-    int m_cur_active_screen = 0;
+    int m_cur_active_screen = -1;
     int m_screen_select_mode = 0;
     int m_switch_to_screen = -1;
     double m_screendur = 0.5;
@@ -365,17 +365,19 @@ class XenVintageGranular
     }
     void setGlobalTranspose(float x) { m_global_transpose = x; }
     void setAutoScreenSelectRate(float seconds) { m_screendur = seconds; }
-    int getCurrentlyPlayingScreen() const { return m_cur_active_screen; }
+    int getCurrentlyPlayingScreen() const
+    {
+        if (m_cur_active_screen >= 0 && m_cur_active_screen < 8)
+            return m_cur_active_screen;
+        return 0;
+    }
     bool isAutoScreenSelectActive() const { return m_screen_select_mode != 0; }
     void setScreenOrSelectMode(int mode)
     {
         if (mode >= 0 && mode < 8)
         {
-            if (mode != m_cur_active_screen)
-            {
-                m_switch_to_screen = mode;
-                m_screen_select_mode = 0;
-            }
+            m_switch_to_screen = mode;
+            m_screen_select_mode = 0;
         }
         if (mode == -2)
             m_screen_select_mode = 1;
