@@ -314,12 +314,13 @@ class XenVintageGranular
     int m_screen_select_mode = 0;
     int m_switch_to_screen = -1;
     double m_screendur = 0.5;
+    float m_screensdata[8][16][4];
 
   public:
     std::array<XenGrainStream, 20> m_streams;
     VisualizerFifoType m_grains_to_gui_fifo;
     GuiToAudioFifoType m_gui_to_audio_fifo;
-    float m_screensdata[8][16][4];
+
     int m_maxscreen = 0;
     Tunings::Tuning m_tuning;
 
@@ -370,6 +371,12 @@ class XenVintageGranular
         if (m_cur_active_screen >= 0 && m_cur_active_screen < 8)
             return m_cur_active_screen;
         return 0;
+    }
+    float getDensity(int screen, int x, int y)
+    {
+        if (screen >= 0 && screen < 8 && x >= 0 && x < 16 && y >= 0 && y < 4)
+            return m_screensdata[screen][x][y];
+        return 0.0f;
     }
     bool isAutoScreenSelectActive() const { return m_screen_select_mode != 0; }
     void setScreenOrSelectMode(int mode)

@@ -46,7 +46,7 @@ class GrainScreenComponent : public juce::Component, public juce::Timer
                 float ycor = getHeight() / 4.0 * j;
                 float w = getWidth() / 16.0;
                 float h = getHeight() / 4.0;
-                bool active = geng.m_screensdata[geng.getCurrentlyPlayingScreen()][i][3 - j] > 0.0f;
+                bool active = geng.getDensity(geng.getCurrentlyPlayingScreen(), i, 3 - j) > 0.0f;
                 if (m_sel_cell_x == i && m_sel_cell_y == j)
                 {
                     g.setColour(juce::Colours::cyan.withAlpha(0.5f));
