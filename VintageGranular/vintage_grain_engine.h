@@ -533,29 +533,38 @@ class XenVintageGranular
         }
     }
     juce::Range<float> getPitchRange() const { return juce::Range(m_min_pitch, m_max_pitch); }
+    void handleGUIMessage(const GuiToAudioMessage &msg)
+    {
+        if (msg.m_act == GuiToAudioActionType::ClearAllCells)
+        {
+            for (int i = 0; i < 16; ++i)
+            {
+                for (int j = 0; j < 4; ++j)
+                {
+                    m_screensdata[msg.m_par0][i][j] = 0.0f;
+                }
+            }
+            for (auto &s : m_streams)
+            {
+                s.stopStream();
+            }
+        }
+    }
     void process(float *outframe)
     {
         if (m_phase_resetted)
         {
-            GuiToAudioMessage msg;
-            while (m_gui_to_audio_fifo.pop(msg))
-            {
-                if (msg.m_act == GuiToAudioActionType::ClearAllCells)
-                {
-                    for (int i = 0; i < 16; ++i)
-                    {
-                        for (int j = 0; j < 4; ++j)
-                        {
-                            m_screensdata[msg.m_par0][i][j] = 0.0f;
-                        }
-                    }
-                }
-            }
             updateStreams();
             m_phase_resetted = false;
         }
         if (m_lfo_update_counter == 0)
         {
+            // is this going to happen too often with the blocksize of 32?
+            GuiToAudioMessage msg;
+            while (m_gui_to_audio_fifo.pop(msg))
+            {
+                handleGUIMessage(msg);
+            }
             m_lfo0.process_block(2.0, 0.5, LFOType::Shape::SMOOTH_NOISE);
             m_lfo1.process_block(3.0, 0.6, LFOType::Shape::SMOOTH_NOISE);
             for (auto &stream : m_streams)
