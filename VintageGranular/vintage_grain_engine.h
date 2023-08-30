@@ -183,7 +183,7 @@ class XenGrainStream
         double pitch = juce::jmap<float>(dist(m_rng), 0.0f, 1.0f, pitchmintouse, pitchmaxtouse);
         pitch += m_global_transpose;
         pitch += m_pitch_mod_amount;
-        pitch = juce::jlimit(12.0, 120.0, pitch);
+        pitch = juce::jlimit(m_min_pitch, m_max_pitch, pitch);
         double hz = 440.0f;
         if (!m_use_tuning)
             hz = 440.0 * std::pow(2.0f, 1.0 / 12 * (pitch - 69.0));
