@@ -69,10 +69,12 @@ class GrainScreenComponent : public juce::Component, public juce::Timer
             double ycor = juce::jmap<double>(i, 0, 4, 0.0, getHeight());
             g.drawLine(0, ycor, getWidth(), ycor);
         }
-        g.setColour(juce::Colours::green.withAlpha(0.5f));
+        
         double cpuload = m_proc.m_cpu_load.getLoadAsProportion();
         cpuload = juce::jmap<double>(cpuload, 0.0, 1.0, 0, getWidth() / 2.0);
+        g.setColour(juce::Colours::cyan.withAlpha(1.0f));
         g.drawRect(1, 1, 500, 15);
+        g.setColour(juce::Colours::green.withAlpha(1.0f));
         g.fillRect(1, 1, cpuload, 15);
     }
     void visibilityChanged() override { m_proc.m_eng.setVisualizationEnabled(isVisible()); }

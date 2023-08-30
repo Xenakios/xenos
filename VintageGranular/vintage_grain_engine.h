@@ -48,6 +48,8 @@ struct SRProvider
     }
 };
 
+using PanMatrixType = sst::basic_blocks::dsp::pan_laws::panmatrix_t;
+
 class XenGrainVoice
 {
   public:
@@ -56,7 +58,7 @@ class XenGrainVoice
         for (int i = 0; i < 4; ++i)
             panmatrix[i] = 0.0f;
     }
-    sst::basic_blocks::dsp::pan_laws::panmatrix_t panmatrix;
+
     void startGrain(float samplerate, float hz, float gain, float duration, float pan,
                     float envpercent)
     {
@@ -67,14 +69,13 @@ class XenGrainVoice
         m_osc_phase = 0.0;
         m_sr = samplerate;
         m_dur = duration;
-        m_hz = hz;
-        m_osc_phase_inc = 2 * M_PI / m_sr * m_hz;
+        m_osc_phase_inc = 2 * M_PI / m_sr * hz;
         m_gain = gain;
         m_active = true;
         sst::basic_blocks::dsp::pan_laws::monoEqualPower(pan, panmatrix);
     }
-    double m_osc_phase_inc = 0.0;
-    void processFrame(float *frame)
+
+    forcedinline void processFrame(float *frame)
     {
         float out = std::sin(m_osc_phase);
         out *= m_gain;
@@ -92,13 +93,100 @@ class XenGrainVoice
         frame[1] = panmatrix[3] * out;
     }
     bool m_active = false;
-    float m_hz = 440.0f;
     float m_gain = 0.5f;
     float m_dur = 0.1;
     float m_sr = 44100.0f;
     double m_osc_phase = 0.0;
+    double m_osc_phase_inc = 0.0;
     double m_grain_phase = 0.0;
+    PanMatrixType panmatrix;
     float m_env_percent = 0.1f;
+};
+
+template <size_t Size> class GrainVoices
+{
+  public:
+    std::array<bool, Size> m_actives;
+    std::array<float, Size> m_gains;
+    std::array<float, Size> m_durs;
+    std::array<double, Size> m_osc_phases;
+    std::array<double, Size> m_osc_phase_incs;
+    std::array<double, Size> m_grain_phases;
+    std::array<float, Size> m_envs;
+    std::array<PanMatrixType, Size> m_panmatrixes;
+    float m_sr = 44100.0f;
+    GrainVoices()
+    {
+        for (int i = 0; i < Size; ++i)
+        {
+            m_actives[i] = false;
+            m_durs[i] = 0.1;
+            m_gains[i] = 0.5;
+            m_osc_phases[i] = 0.0;
+            m_osc_phase_incs[i] = 0.0;
+            m_grain_phases[i] = 0.0;
+            m_envs[i] = 0.1;
+            m_panmatrixes[i][0] = 0.0f;
+            m_panmatrixes[i][1] = 0.0f;
+            m_panmatrixes[i][2] = 0.0f;
+            m_panmatrixes[i][3] = 0.0f;
+        }
+    }
+    void initVoice(int voiceindex, float hz, float gain, float duration, float pan,
+                   float envpercent)
+    {
+        m_envs[voiceindex] = juce::jlimit(0.01f, 0.499f, envpercent * 0.5f);
+        m_grain_phases[voiceindex] = 0.0;
+        m_osc_phases[voiceindex] = 0.0;
+        m_durs[i] = duration;
+        m_osc_phase_incs[voiceindex] = 2 * M_PI / m_sr * hz;
+        m_gains[voiceindex] = gain;
+        m_actives[voiceindex] = true;
+        sst::basic_blocks::dsp::pan_laws::monoEqualPower(pan, m_panmatrixes[voiceindex]);
+    }
+    void startGrain(float samplerate, float hz, float gain, float duration, float pan,
+                    float envpercent)
+    {
+        m_sr = samplerate;
+        for (int i = 0; i < Size; ++i)
+        {
+            if (!m_actives[i])
+            {
+                initVoice(i, hz, gain, duration, pan, envpercent);
+                break;
+            }
+        }
+    }
+    void processVoice(int voiceindex, float *frame)
+    {
+        float out = std::sin(m_osc_phases[voiceindex]);
+        out *= m_gains[voiceindex];
+        double dursamples = m_durs[voiceindex] * m_sr;
+        double fadelen = dursamples * m_env_percent;
+        double grainphase = m_grain_phases[voiceindex];
+        if (grainphase < fadelen)
+            out *= juce::jmap<double>(grain_phase, 0.0, fadelen, 0.0, 1.0);
+        if (grain_phase >= dursamples - fadelen)
+            out *= juce::jmap<double>(grain_phase, dursamples - fadelen, dursamples, 1.0, 0.0);
+        m_grain_phases[voiceindex] += 1.0;
+        if (m_grain_phases[voiceindex] > dursamples)
+            m_actives[voiceindex] = false;
+        m_osc_phases[voiceindex] += m_osc_phase_incs[voiceindex];
+        frame[0] += m_panmatrixes[voiceindex][0] * out;
+        frame[1] += m_panmatrixes[voiceindex][3] * out;
+    }
+    void processVoices(float *outframe)
+    {
+        outframe[0] = 0.0f;
+        outframe[1] = 0.0f;
+        for (int i = 0; i < Size; ++i)
+        {
+            if (m_actives[i])
+            {
+                processVoice(i);
+            }
+        }
+    }
 };
 
 class GrainVisualizationInfo
@@ -149,8 +237,9 @@ class XenGrainStream
 
   public:
     std::minstd_rand0 m_rng;
-    std::array<XenGrainVoice, 16> m_voices;
-
+    static constexpr int maxNumVoices = 16;
+    std::array<XenGrainVoice, maxNumVoices> m_voices;
+    GrainVoices<16> m_voices2;
     double m_sr = 44100.0;
     VisualizerFifoType *m_grains_to_gui_fifo = nullptr;
     XenGrainStream()
