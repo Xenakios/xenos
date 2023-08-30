@@ -21,6 +21,7 @@ static const juce::Identifier pitchLFO0Amount{"PITCHLFO0AMOUNT"};
 static const juce::Identifier pitchLFO1Amount{"PITCHLFO1AMOUNT"};
 static const juce::Identifier globalMinPitch{"MAINMINPITCH"};
 static const juce::Identifier globalMaxPitch{"MAINMAXPITCH"};
+static const juce::Identifier globalEnvelopeLen{"MAINENVELLEN"};
 } // namespace ParamIDs
 
 class VintageGranularAudioProcessor : public foleys::MagicProcessor

@@ -41,6 +41,8 @@ VintageGranularAudioProcessor::createParameters()
                                24.0);
     createAndAddFloatParameter(layout, ParamIDs::globalMaxPitch, "Main max pitch", 66.0, 120.0, 0.5,
                                115.0);
+    createAndAddFloatParameter(layout, ParamIDs::globalEnvelopeLen, "Envelope length", 0.0, 1.0,
+                               0.01, 0.5);
     return layout;
 }
 
@@ -195,6 +197,8 @@ void VintageGranularAudioProcessor::processBlock(juce::AudioBuffer<float> &buffe
     float minpitch = *m_apvts.getRawParameterValue(ParamIDs::globalMinPitch);
     float maxpitch = *m_apvts.getRawParameterValue(ParamIDs::globalMaxPitch);
     m_eng.setPitchRange(minpitch, maxpitch);
+    float envel = *m_apvts.getRawParameterValue(ParamIDs::globalEnvelopeLen);
+    m_eng.setEnvelopeLenth(envel);
     for (int i = 0; i < buffer.getNumSamples(); ++i)
     {
         float outframe[2];

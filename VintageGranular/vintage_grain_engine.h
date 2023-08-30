@@ -57,10 +57,12 @@ class XenGrainVoice
             panmatrix[i] = 0.0f;
     }
     sst::basic_blocks::dsp::pan_laws::panmatrix_t panmatrix;
-    void startGrain(float samplerate, float hz, float gain, float duration, float pan)
+    void startGrain(float samplerate, float hz, float gain, float duration, float pan,
+                    float envpercent)
     {
         if (m_active)
             return;
+        m_env_percent = juce::jlimit(0.01f, 0.499f, envpercent * 0.5f);
         m_grain_phase = 0.0;
         m_osc_phase = 0.0;
         m_sr = samplerate;
@@ -77,7 +79,7 @@ class XenGrainVoice
         float out = std::sin(m_osc_phase);
         out *= m_gain;
         double dursamples = m_dur * m_sr;
-        double fadelen = dursamples * 0.1;
+        double fadelen = dursamples * m_env_percent;
         if (m_grain_phase < fadelen)
             out *= juce::jmap<double>(m_grain_phase, 0.0, fadelen, 0.0, 1.0);
         if (m_grain_phase >= dursamples - fadelen)
@@ -96,6 +98,7 @@ class XenGrainVoice
     float m_sr = 44100.0f;
     double m_osc_phase = 0.0;
     double m_grain_phase = 0.0;
+    float m_env_percent = 0.1f;
 };
 
 class GrainVisualizationInfo
@@ -195,7 +198,7 @@ class XenGrainStream
         float vol = juce::jmap<float>(dist(m_rng), 0.0f, 1.0f, m_min_volume, m_max_volume);
         float gain = juce::Decibels::decibelsToGain(vol);
         float pan = dist(m_rng);
-        v.startGrain(m_sr, hz, gain, m_grain_dur * m_dur_multiplier, pan);
+        v.startGrain(m_sr, hz, gain, m_grain_dur * m_dur_multiplier, pan, m_env_percent);
         if (m_visualization_enabled && m_grains_to_gui_fifo)
         {
             m_grains_to_gui_fifo->push({pitch, vol});
@@ -205,6 +208,7 @@ class XenGrainStream
     int m_screen_x = 0;
     int m_screen_y = 0;
     float m_density_multiplier = 1.0;
+    float m_env_percent = 0.1f;
     void setDensityMultiplier(float x) { m_density_multiplier = x; }
     float m_dur_multiplier = 1.0f;
     void setDurationMultiplier(float x) { m_dur_multiplier = x; }
@@ -332,6 +336,13 @@ class XenVintageGranular
         for (auto &s : m_streams)
         {
             s.m_visualization_enabled = b;
+        }
+    }
+    void setEnvelopeLenth(float percent)
+    {
+        for (auto &s : m_streams)
+        {
+            s.m_env_percent = percent;
         }
     }
     void setDistortionAmount(float amt)
