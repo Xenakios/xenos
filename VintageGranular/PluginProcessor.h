@@ -24,6 +24,8 @@ static const juce::Identifier globalMaxPitch{"MAINMAXPITCH"};
 static const juce::Identifier globalEnvelopeLen{"MAINENVELLEN"};
 } // namespace ParamIDs
 
+using ParameterLayoutType = juce::AudioProcessorValueTreeState::ParameterLayout;
+
 class VintageGranularAudioProcessor : public foleys::MagicProcessor
 {
   public:
@@ -68,7 +70,7 @@ class VintageGranularAudioProcessor : public foleys::MagicProcessor
     void initialiseBuilder(foleys::MagicGUIBuilder &builder) override;
 
   private:
-    juce::AudioProcessorValueTreeState::ParameterLayout createParameters();
+    ParameterLayoutType createParameters();
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(VintageGranularAudioProcessor)
 };

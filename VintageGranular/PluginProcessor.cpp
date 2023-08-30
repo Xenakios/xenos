@@ -3,23 +3,25 @@
 
 using jnr = juce::NormalisableRange<float>;
 
-inline void createAndAddFloatParameter(juce::AudioProcessorValueTreeState::ParameterLayout &layout,
-                                       const juce::Identifier &paramid, juce::String displayname,
-                                       float minval, float maxval, float step, float defaultval)
+inline void createAndAddFloatParameter(ParameterLayoutType &layout, const juce::Identifier &paramid,
+                                       juce::String displayname, float minval, float maxval,
+                                       float step, float defaultval,
+                                       std::optional<float> middlepoint = {})
 {
+    jnr nr(minval, maxval, step);
+    if (middlepoint)
+        nr.setSkewForCentre(*middlepoint);
     auto fpar = std::make_unique<juce::AudioParameterFloat>(
-        juce::ParameterID(paramid.toString(), 1), displayname, jnr(minval, maxval, step),
-        defaultval);
+        juce::ParameterID(paramid.toString(), 1), displayname, nr, defaultval);
     layout.add(std::move(fpar));
 }
 
-juce::AudioProcessorValueTreeState::ParameterLayout
-VintageGranularAudioProcessor::createParameters()
+ParameterLayoutType VintageGranularAudioProcessor::createParameters()
 {
-    juce::AudioProcessorValueTreeState::ParameterLayout layout;
+    ParameterLayoutType layout;
     createAndAddFloatParameter(layout, ParamIDs::mainVolume, "Main volume", -48.0, 0.0, 0.5, -24.0);
     createAndAddFloatParameter(layout, ParamIDs::mainDensity, "Density scaling", 0.5, 2.0, 0.01,
-                               1.0);
+                               1.0, 1.0);
     createAndAddFloatParameter(layout, ParamIDs::mainTranspose, "Global transpose", -24.0, 24.0,
                                0.5, 0.0);
     createAndAddFloatParameter(layout, ParamIDs::mainGrainDur, "Grain duration scaling", 0.1, 2.0,
