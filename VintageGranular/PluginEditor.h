@@ -38,14 +38,15 @@ class GrainScreenComponent : public juce::Component, public juce::Timer
             double ycor = juce::jmap<double>(grain.volume, -40.0, 0.0, getHeight(), 0);
             g.fillEllipse(xcor - grainRadius / 2, ycor - grainRadius / 2, grainRadius, grainRadius);
         }
+        float w = getWidth() / 16.0;
+        float h = getHeight() / 4.0;
         for (int i = 0; i < 16; ++i)
         {
             for (int j = 0; j < 4; ++j)
             {
                 float xcor = getWidth() / 16.0 * i;
                 float ycor = getHeight() / 4.0 * j;
-                float w = getWidth() / 16.0;
-                float h = getHeight() / 4.0;
+
                 bool active = geng.getDensity(geng.getCurrentlyPlayingScreen(), i, 3 - j) > 0.0f;
                 if (m_sel_cell_x == i && m_sel_cell_y == j)
                 {
@@ -55,11 +56,25 @@ class GrainScreenComponent : public juce::Component, public juce::Timer
                 else if (active)
                     g.setColour(juce::Colours::cyan.withAlpha(0.2f));
                 if (active)
+                {
                     g.fillRect(xcor, ycor, w, h);
+                }
+            }
+        }
+        g.setColour(juce::Colours::white);
+
+        g.setFont(14.0f);
+        for (auto &s : geng.m_streams)
+        {
+            if (!s.isAvailable())
+            {
+                int xcor = getWidth() / 16 * s.m_screen_x;
+                int ycor = getHeight() / 4 * s.m_screen_y;
+                g.drawText(juce::String(s.getApproxVoicesUsed()), xcor, ycor, w, h,
+                           juce::Justification::centred);
             }
         }
 
-        g.setColour(juce::Colours::white);
         for (int i = 0; i < 17; ++i)
         {
             g.drawLine(getWidth() / 16.0 * i, 0.0, getWidth() / 16.0 * i, getHeight());
@@ -69,7 +84,7 @@ class GrainScreenComponent : public juce::Component, public juce::Timer
             double ycor = juce::jmap<double>(i, 0, 4, 0.0, getHeight());
             g.drawLine(0, ycor, getWidth(), ycor);
         }
-        
+
         double cpuload = m_proc.m_cpu_load.getLoadAsProportion();
         cpuload = juce::jmap<double>(cpuload, 0.0, 1.0, 0, getWidth() / 2.0);
         g.setColour(juce::Colours::cyan.withAlpha(1.0f));
@@ -78,19 +93,8 @@ class GrainScreenComponent : public juce::Component, public juce::Timer
         g.fillRect(1, 1, cpuload, 15);
     }
     void visibilityChanged() override { m_proc.m_eng.setVisualizationEnabled(isVisible()); }
-    void mouseDown(const juce::MouseEvent &ev) override
-    {
-        m_sel_cell_x = juce::jmap<float>(ev.x, 0, getWidth(), 0, 16);
-        m_sel_cell_y = juce::jmap<float>(ev.y, 0, getHeight(), 0, 4);
-        return;
-        auto &geng = m_proc.m_eng;
-        if (!geng.isAutoScreenSelectActive())
-        {
-            geng.m_gui_to_audio_fifo.push({GuiToAudioActionType::ClearAllCells,
-                                           geng.getCurrentlyPlayingScreen(), 0, 0, 0.0f});
-        }
-    }
-
+    void mouseDown(const juce::MouseEvent &ev) override;
+    
   private:
     VintageGranularAudioProcessor &m_proc;
     int m_sel_cell_x = -1;

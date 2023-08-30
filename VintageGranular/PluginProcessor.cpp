@@ -61,6 +61,7 @@ VintageGranularAudioProcessor::VintageGranularAudioProcessor()
       m_apvts(*this, nullptr, "STATE", createParameters())
 {
     FOLEYS_SET_SOURCE_PATH(__FILE__);
+    
 }
 
 VintageGranularAudioProcessor::~VintageGranularAudioProcessor() {}

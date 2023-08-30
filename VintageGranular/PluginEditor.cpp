@@ -41,3 +41,27 @@ void AudioPluginAudioProcessorEditor::resized()
     m_generic_editor.setBounds(3, m_grain_comp.getBottom(), getWidth() - 6, 99);
 }
 #endif
+
+void GrainScreenComponent::mouseDown(const juce::MouseEvent &ev)
+{
+    if (ev.mods.isLeftButtonDown())
+    {
+        m_sel_cell_x = juce::jmap<float>(ev.x, 0, getWidth(), 0, 16);
+        m_sel_cell_y = juce::jmap<float>(ev.y, 0, getHeight(), 0, 4);
+        return;
+    }
+    auto &geng = m_proc.m_eng;
+    if (ev.mods.isRightButtonDown() && !geng.isAutoScreenSelectActive())
+    {
+        juce::PopupMenu menu;
+        menu.addItem("Randomize cells", [&geng]() {
+            geng.m_gui_to_audio_fifo.push({GuiToAudioActionType::RandomizeCells,
+                                           geng.getCurrentlyPlayingScreen(), 0, 0, 0.0f});
+        });
+        menu.addItem("Clear cells", [&geng]() {
+            geng.m_gui_to_audio_fifo.push({GuiToAudioActionType::ClearAllCells,
+                                           geng.getCurrentlyPlayingScreen(), 0, 0, 0.0f});
+        });
+        menu.showMenuAsync(juce::PopupMenu::Options{});
+    }
+}

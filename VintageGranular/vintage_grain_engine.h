@@ -202,6 +202,7 @@ enum class GuiToAudioActionType
 {
     None,
     ClearAllCells,
+    RandomizeCells,
     ChangeCellDensity,
     Last
 };
@@ -248,6 +249,17 @@ class XenGrainStream
         m_rng = std::minstd_rand0((unsigned int)this);
         m_adsr.setSampleRate(m_sr);
         m_adsr.setParameters({0.01, 0.01, 1.0, 0.3});
+    }
+    // approx because not thread safe and we probably won't bother making it so
+    int getApproxVoicesUsed()
+    {
+        int count = 0;
+        for (auto &v : m_voices)
+        {
+            if (v.m_active)
+                ++count;
+        }
+        return count;
     }
     bool isAvailable() const { return !m_is_playing; }
     bool m_use_tuning = false;
@@ -299,6 +311,7 @@ class XenGrainStream
     float m_density_multiplier = 1.0;
     float m_env_percent = 0.1f;
     void setDensityMultiplier(float x) { m_density_multiplier = x; }
+    void setDensity(float x) { m_grain_rate = x; }
     float m_dur_multiplier = 1.0f;
     void setDurationMultiplier(float x) { m_dur_multiplier = x; }
     float m_pitch_rand_par0 = 1.0;
@@ -378,7 +391,7 @@ class XenGrainStream
     }
     double m_phase = 0;
     double m_next_grain_time = 0;
-    float m_density_scaling = 1.0f;
+
     float m_distortion_amount = 0.5f;
     float m_distortion_gain = 2.0f;
     void setDistortionAmount(float amt)
@@ -576,9 +589,8 @@ class XenVintageGranular
         m_sr_provider.samplerate = sr;
         m_sr_provider.initTables();
     }
-    void updateStreams()
+    void updateStreams(bool force=false)
     {
-
         std::uniform_int_distribution<int> screendist{0, m_maxscreen - 1};
         int screentouse = m_cur_active_screen;
         if (m_screen_select_mode == 0)
@@ -591,7 +603,7 @@ class XenVintageGranular
             screentouse = screendist(m_rng);
         if (m_screen_select_mode == 2)
             screentouse = (screentouse + 1) % m_maxscreen;
-        if (screentouse == m_cur_active_screen)
+        if (screentouse == m_cur_active_screen && !force)
             return;
         // cancel all previous active streams if screen changed
         for (auto &stream : m_streams)
@@ -660,6 +672,28 @@ class XenVintageGranular
             {
                 s.stopStream();
             }
+        }
+        if (msg.m_act == GuiToAudioActionType::RandomizeCells)
+        {
+            for (int i = 0; i < 16; ++i)
+            {
+                for (int j = 0; j < 4; ++j)
+                {
+                    m_screensdata[msg.m_par0][i][j] = 0.0f;
+                }
+            }
+            std::uniform_int_distribution<int> numcellsdist{1, 10};
+            std::uniform_int_distribution<int> xdist{0, 15};
+            std::uniform_int_distribution<int> ydist{0, 3};
+            std::uniform_real_distribution<float> densitydist{0.1f, 5.0f};
+            int numcellstofill = numcellsdist(m_rng);
+            for (int i = 0; i < numcellstofill; ++i)
+            {
+                int x = xdist(m_rng);
+                int y = ydist(m_rng);
+                m_screensdata[msg.m_par0][x][y] = densitydist(m_rng);
+            }
+            updateStreams(true);
         }
     }
     void process(float *outframe)

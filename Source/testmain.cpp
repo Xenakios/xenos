@@ -318,9 +318,26 @@ inline void runVintageGranularTests()
     vgBasicTests(progress);
 }
 
+struct myarrtestobject
+{
+    // myarrtestobject() {}
+    myarrtestobject(int x) : m_x(x) {}
+    int m_x = 0;
+};
+
+void test_array_init()
+{
+    std::vector<myarrtestobject> arr{16ULL, myarrtestobject{42}};
+
+    for (auto &e : arr)
+    {
+        std::cout << e.m_x << "\n";
+    }
+}
+
 int main()
 {
-    runVintageGranularTests();
+    // runVintageGranularTests();
     // test_sst_tuning();
     // test_xenoscore();
     // test_shadowing();
@@ -330,5 +347,6 @@ int main()
     // test_jsonparse();
     // test_graphing();
     // test_uniform_distances();
+    test_array_init();
     return 0;
 }
