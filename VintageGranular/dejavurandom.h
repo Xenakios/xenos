@@ -48,6 +48,9 @@ struct DejaVuRandom
                     // rotate state left and generate new random number to end of loop
                     std::rotate(m_state.begin(), m_state.begin() + 1, m_state.begin() + m_loop_len);
                     m_state[m_loop_len - 1] = m_rng();
+                    --m_loop_index;
+                    if (m_loop_index < 0)
+                        m_loop_index = m_loop_len - 1;
                 }
             }
             else

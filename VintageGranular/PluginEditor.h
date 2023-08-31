@@ -17,9 +17,30 @@ class GrainScreenComponent : public juce::Component, public juce::Timer
     GrainScreenComponent(VintageGranularAudioProcessor &p) : m_proc(p) { startTimerHz(10); }
     ~GrainScreenComponent() override { m_proc.m_eng.setVisualizationEnabled(false); }
     void timerCallback() override { repaint(); }
+    unsigned int m_foo = 0;
     void paint(juce::Graphics &g) override
     {
-        // m_proc.m_eng.setVisualizationEnabled(true);
+#ifdef DEBUG_DEJAVURANDOM
+
+        g.fillAll(juce::Colours::black);
+        int dvsteps = *m_proc.m_apvts.getRawParameterValue(ParamIDs::dejavuSteps);
+        float dvtime = *m_proc.m_apvts.getRawParameterValue(ParamIDs::dejavuTime);
+        m_test_dejavu.m_deja_vu = dvtime;
+        m_test_dejavu.m_loop_len = dvsteps;
+        for (int i = 0; i < 16; ++i)
+        {
+            int xcor = getWidth() / 16 * i;
+            int w = getWidth() / 16;
+            int ycor = m_test_dejavu.m_state[i] % getHeight();
+            if (i == m_test_dejavu.m_loop_index)
+                g.setColour(juce::Colours::yellow);
+            else
+                g.setColour(juce::Colours::green);
+            g.drawLine(xcor, ycor, xcor + w, ycor, 8.0f);
+        }
+        m_foo = m_test_dejavu();
+        return;
+#endif
         auto &geng = m_proc.m_eng;
         g.fillAll(juce::Colours::black);
         g.setColour(juce::Colours::yellow);
@@ -94,11 +115,12 @@ class GrainScreenComponent : public juce::Component, public juce::Timer
     }
     void visibilityChanged() override { m_proc.m_eng.setVisualizationEnabled(isVisible()); }
     void mouseDown(const juce::MouseEvent &ev) override;
-    
+
   private:
     VintageGranularAudioProcessor &m_proc;
     int m_sel_cell_x = -1;
     int m_sel_cell_y = -1;
+    DejaVuRandom m_test_dejavu{6};
 };
 
 // This class is creating and configuring your custom component
