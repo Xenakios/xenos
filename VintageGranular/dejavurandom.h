@@ -38,7 +38,7 @@ struct DejaVuRandom
             m_loop_index = 0;
             rewinded = true;
         }
-        if (rewinded)
+        // if (rewinded)
         {
             if (m_deja_vu >= 0.0f && m_deja_vu <= 0.5f)
             {
@@ -50,20 +50,24 @@ struct DejaVuRandom
                     m_state[m_loop_len - 1] = m_rng();
                 }
             }
-            else if (m_deja_vu > 0.5f && m_deja_vu < 0.9f)
+            else
+            // (m_deja_vu > 0.5f) // && m_deja_vu < 0.9f)
             {
-                float prob = maprange(m_deja_vu, 0.5f, 0.9f, 1.0f, 0.0f);
+                float prob = maprange(m_deja_vu, 0.5f, 1.0f, 1.0f, 0.0f);
                 if (m_dist(m_rng) >= prob)
                 {
                     std::uniform_int_distribution<int> selectdist(0, m_loop_len - 1);
-                    int slot = selectdist(m_rng);
-                    m_state[slot] = m_rng();
+                    // int slot = selectdist(m_rng);
+                    // m_state[slot] = m_rng();
+                    m_loop_index = selectdist(m_rng);
                 }
             }
+            /*
             else
             {
                 std::shuffle(m_state.begin(), m_state.begin() + m_loop_len, m_rng);
             }
+            */
         }
         return next;
     }
