@@ -241,6 +241,7 @@ class XenGrainStream
     std::minstd_rand0 m_rng;
     DejaVuRandom m_pitch_rng{(unsigned int)this};
     DejaVuRandom m_time_rng{((unsigned int)this) / 2};
+    DejaVuRandom m_pan_rng{((unsigned int)this) * 2};
     static constexpr int maxNumVoices = 16;
     std::array<XenGrainVoice, maxNumVoices> m_voices;
     GrainVoices<16> m_voices2;
@@ -306,7 +307,7 @@ class XenGrainStream
         jassert(hz >= 15.0 && hz < 20000.0);
         float vol = juce::jmap<float>(dist(m_rng), 0.0f, 1.0f, m_min_volume, m_max_volume);
         float gain = juce::Decibels::decibelsToGain(vol);
-        float pan = dist(m_rng);
+        float pan = dist(m_pan_rng);
         v.startGrain(m_sr, hz, gain, m_grain_dur * m_dur_multiplier, pan, m_env_percent);
         if (m_visualization_enabled && m_grains_to_gui_fifo)
         {
@@ -664,7 +665,7 @@ class XenVintageGranular
             s.setPitchRange(minpitch, maxpitch);
         }
     }
-    void setDejaVuParameters(int steps, float dvtime, float dvpitch)
+    void setDejaVuParameters(int steps, float dvtime, float dvpitch, float dvpan)
     {
         for (auto &s : m_streams)
         {
@@ -672,6 +673,8 @@ class XenVintageGranular
             s.m_pitch_rng.m_deja_vu = dvpitch;
             s.m_time_rng.m_loop_len = steps;
             s.m_time_rng.m_deja_vu = dvtime;
+            s.m_pan_rng.m_deja_vu = dvpan;
+            s.m_pan_rng.m_loop_len = steps;
         }
     }
     juce::Range<float> getPitchRange() const { return juce::Range(m_min_pitch, m_max_pitch); }
