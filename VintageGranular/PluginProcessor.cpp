@@ -45,6 +45,11 @@ ParameterLayoutType VintageGranularAudioProcessor::createParameters()
                                115.0);
     createAndAddFloatParameter(layout, ParamIDs::globalEnvelopeLen, "Envelope length", 0.0, 1.0,
                                0.01, 0.5);
+    ipar = std::make_unique<juce::AudioParameterInt>(ParamIDs::dejavuSteps.toString(),
+                                                     "DejaVu steps", 1, 16, 8);
+    layout.add(std::move(ipar));
+    createAndAddFloatParameter(layout, ParamIDs::dejavuTime, "Time DejaVu", 0.0, 1.0, 0.01, 0.0);
+    createAndAddFloatParameter(layout, ParamIDs::dejavuPitch, "Pitch DejaVu", 0.0, 1.0, 0.01, 0.0);
     return layout;
 }
 
@@ -61,7 +66,6 @@ VintageGranularAudioProcessor::VintageGranularAudioProcessor()
       m_apvts(*this, nullptr, "STATE", createParameters())
 {
     FOLEYS_SET_SOURCE_PATH(__FILE__);
-    
 }
 
 VintageGranularAudioProcessor::~VintageGranularAudioProcessor() {}
@@ -202,6 +206,10 @@ void VintageGranularAudioProcessor::processBlock(juce::AudioBuffer<float> &buffe
     m_eng.setPitchRange(minpitch, maxpitch);
     float envel = *m_apvts.getRawParameterValue(ParamIDs::globalEnvelopeLen);
     m_eng.setEnvelopeLenth(envel);
+    int dvsteps = *m_apvts.getRawParameterValue(ParamIDs::dejavuSteps);
+    float dvtime = *m_apvts.getRawParameterValue(ParamIDs::dejavuTime);
+    float dvpitch = *m_apvts.getRawParameterValue(ParamIDs::dejavuPitch);
+    m_eng.setDejaVuParameters(dvsteps, dvtime, dvpitch);
     for (int i = 0; i < buffer.getNumSamples(); ++i)
     {
         float outframe[2];

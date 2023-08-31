@@ -22,6 +22,10 @@ static const juce::Identifier pitchLFO1Amount{"PITCHLFO1AMOUNT"};
 static const juce::Identifier globalMinPitch{"MAINMINPITCH"};
 static const juce::Identifier globalMaxPitch{"MAINMAXPITCH"};
 static const juce::Identifier globalEnvelopeLen{"MAINENVELLEN"};
+static const juce::Identifier dejavuSteps{"DEJAVUSTEPS"};
+static const juce::Identifier dejavuPitch{"DEJAVUPITCH"};
+static const juce::Identifier dejavuTime{"DEJAVUTIME"};
+
 } // namespace ParamIDs
 
 using ParameterLayoutType = juce::AudioProcessorValueTreeState::ParameterLayout;

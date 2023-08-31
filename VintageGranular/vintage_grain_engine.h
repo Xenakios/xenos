@@ -664,6 +664,16 @@ class XenVintageGranular
             s.setPitchRange(minpitch, maxpitch);
         }
     }
+    void setDejaVuParameters(int steps, float dvtime, float dvpitch)
+    {
+        for (auto &s : m_streams)
+        {
+            s.m_pitch_rng.m_loop_len = steps;
+            s.m_pitch_rng.m_deja_vu = dvpitch;
+            s.m_time_rng.m_loop_len = steps;
+            s.m_time_rng.m_deja_vu = dvtime;
+        }
+    }
     juce::Range<float> getPitchRange() const { return juce::Range(m_min_pitch, m_max_pitch); }
     void handleGUIMessage(const GuiToAudioMessage &msg)
     {

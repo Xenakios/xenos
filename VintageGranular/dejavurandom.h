@@ -24,7 +24,7 @@ struct DejaVuRandom
     {
         auto next = m_state[m_loop_index];
         ++m_loop_index;
-        if (m_loop_index == m_loop_len)
+        if (m_loop_index >= m_loop_len)
             m_loop_index = 0;
         if (m_dist(m_rng) >= m_deja_vu)
         {
