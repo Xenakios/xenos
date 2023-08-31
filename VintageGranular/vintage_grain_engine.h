@@ -8,6 +8,7 @@
 #include <algorithm>
 #include "sst/basic-blocks/modulators/SimpleLFO.h"
 #include "choc_SingleReaderSingleWriterFIFO.h"
+#include "dejavurandom.h"
 
 inline float softClip(float x)
 {
@@ -99,8 +100,8 @@ class XenGrainVoice
     double m_osc_phase = 0.0;
     double m_osc_phase_inc = 0.0;
     double m_grain_phase = 0.0;
-    PanMatrixType panmatrix;
     float m_env_percent = 0.1f;
+    PanMatrixType panmatrix;
 };
 
 template <size_t Size> class GrainVoices
@@ -238,6 +239,8 @@ class XenGrainStream
 
   public:
     std::minstd_rand0 m_rng;
+    DejaVuRandom m_pitch_rng{(unsigned int)this};
+    DejaVuRandom m_time_rng{((unsigned int)this) / 2};
     static constexpr int maxNumVoices = 16;
     std::array<XenGrainVoice, maxNumVoices> m_voices;
     GrainVoices<16> m_voices2;
@@ -249,6 +252,10 @@ class XenGrainStream
         m_rng = std::minstd_rand0((unsigned int)this);
         m_adsr.setSampleRate(m_sr);
         m_adsr.setParameters({0.01, 0.01, 1.0, 0.3});
+        m_pitch_rng.m_deja_vu = 0.9f;
+        m_pitch_rng.m_loop_len = 3;
+        m_time_rng.m_deja_vu = 0.9f;
+        m_time_rng.m_loop_len = 3;
     }
     // approx because not thread safe and we probably won't bother making it so
     int getApproxVoicesUsed()
@@ -281,7 +288,8 @@ class XenGrainStream
             juce::jmap<float>(m_pitch_rand_par0, 0.0f, 1.0f, centerpitch, regionpitchmin);
         float pitchmaxtouse =
             juce::jmap<float>(m_pitch_rand_par0, 0.0f, 1.0f, centerpitch, regionpitchmax);
-        double pitch = juce::jmap<float>(dist(m_rng), 0.0f, 1.0f, pitchmintouse, pitchmaxtouse);
+        double pitch =
+            juce::jmap<float>(dist(m_pitch_rng), 0.0f, 1.0f, pitchmintouse, pitchmaxtouse);
         pitch += m_global_transpose;
         pitch += m_pitch_mod_amount;
         pitch = juce::jlimit(m_min_pitch, m_max_pitch, pitch);
@@ -359,7 +367,7 @@ class XenGrainStream
                 }
             }
             std::exponential_distribution<float> expdist(m_grain_rate * m_density_multiplier);
-            m_next_grain_time = m_phase + expdist(m_rng) * m_sr;
+            m_next_grain_time = m_phase + expdist(m_time_rng) * m_sr;
             // m_next_grain_time = m_phase + ((1.0 / m_grain_rate) * m_sr);
         }
         float voicesums[2] = {0.0f, 0.0f};
@@ -589,7 +597,7 @@ class XenVintageGranular
         m_sr_provider.samplerate = sr;
         m_sr_provider.initTables();
     }
-    void updateStreams(bool force=false)
+    void updateStreams(bool force = false)
     {
         std::uniform_int_distribution<int> screendist{0, m_maxscreen - 1};
         int screentouse = m_cur_active_screen;
